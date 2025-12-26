@@ -1,0 +1,45 @@
+{
+  "expo": {
+    "name": "Vehicle Inspector",
+    "slug": "mobile-inspector",
+    "version": "0.1.0",
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0a1628",
+    "primaryColor": "#f2c94c",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "backgroundColor": "#0a1628",
+      "resizeMode": "contain"
+    },
+    "ios": {
+      "bundleIdentifier": "gov.et.transport.inspector",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "This app uses the camera to scan vehicle QR codes for verification.",
+        "NSPhotoLibraryUsageDescription": "This app may save photos of vehicle inspections for evidence."
+      }
+    },
+    "android": {
+      "package": "gov.et.transport.inspector",
+      "adaptiveIcon": {
+        "backgroundColor": "#0a1628"
+      },
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-barcode-scanner",
+      "expo-image-picker",
+      "expo-secure-store"
+    ]
+  }
+}

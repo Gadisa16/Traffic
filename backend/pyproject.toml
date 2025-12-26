@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "taxi-backend"
+version = "0.1.0"
+description = "Taxi Registration & Inspection backend"
+authors = ["Your Name <you@example.com>"]
+packages = [{ include = "app" }]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+fastapi = "0.100.0"
+uvicorn = {extras = ["standard"], version = "0.22.0"}
+sqlalchemy = "2.0.20"
+alembic = "1.11.1"
+psycopg2-binary = "2.9.7"
+pydantic = "1.10.12"
+python-jose = "3.3.0"
+passlib = {extras = ["bcrypt"], version = "1.7.4"}
+python-dotenv = "1.0.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^7.4"
+# pytest-cov removed due to Poetry resolution issues; add back if needed with a compatible version
+httpx = "^0.26"
+# pytest-asyncio removed because of resolution issues; add back if needed with a compatible version
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,29 @@
+{
+  "info": {
+    "name": "Taxi Backend",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "http://localhost:8000/", "host": ["http://localhost:8000"], "path": [""] }
+      }
+    },
+    {
+      "name": "List Vehicles",
+      "request": { "method": "GET", "header": [], "url": { "raw": "http://localhost:8000/vehicles/", "host": ["http://localhost:8000"], "path": ["vehicles",""] } }
+    },
+    {
+      "name": "Create Vehicle",
+      "request": {
+        "method": "POST",
+        "header": [ { "key": "Content-Type", "value": "application/json" } ],
+        "body": { "mode": "raw", "raw": "{\n  \"plate_number\": \"PM123\",\n  \"owner\": { \"full_name\": \"Bob\", \"phone\": \"555\" }\n}" },
+        "url": { "raw": "http://localhost:8000/vehicles/", "host": ["http://localhost:8000"], "path": ["vehicles",""] }
+      }
+    }
+  ]
+}

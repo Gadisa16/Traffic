@@ -1,0 +1,61 @@
+{
+  "info": {
+    "name": "Mobile Inspector - API Tests",
+    "_postman_id": "mi-api-tests",
+    "description": "Postman collection to run basic verify + inspection requests against the API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Verify Vehicle",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/vehicles/verify?code={{code}}",
+          "host": ["{{base_url}}"],
+          "path": ["vehicles","verify"],
+          "query": [{"key":"code","value":"{{code}}"}]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Record Inspection (JSON)",
+      "request": {
+        "method": "POST",
+        "header": [{"key":"Content-Type","value":"application/json"}],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{code}}\",\n  \"when\": {{when}},\n  \"payload\": { \"notes\": \"tested from postman\" }\n}"
+        },
+        "url": { "raw": "{{base_url}}/inspections", "host": ["{{base_url}}"], "path": ["inspections"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Record Inspection (Multipart) - photo",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            { "key": "code", "value": "{{code}}", "type": "text" },
+            { "key": "when", "value": "{{when}}", "type": "text" },
+            { "key": "photo", "type": "file", "src": "{{photo_path}}" }
+          ]
+        },
+        "url": { "raw": "{{base_url}}/inspections", "host": ["{{base_url}}"], "path": ["inspections"] }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "base_url", "value": "http://127.0.0.1:8000" },
+    { "key": "code", "value": "TEST123" },
+    { "key": "when", "value": "{{timestamp}}" },
+    { "key": "photo_path", "value": "" },
+    { "key": "timestamp", "value": "{{timestamp}}" }
+  ]
+}

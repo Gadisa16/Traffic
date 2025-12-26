@@ -1,0 +1,29 @@
+name: Mobile Inspector - Tests
+
+on:
+  push:
+    paths:
+      - "mobile-inspector/**"
+  pull_request:
+    paths:
+      - "mobile-inspector/**"
+
+jobs:
+  test:
+    name: Run unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+      - name: Install dependencies
+        working-directory: mobile-inspector
+        run: |
+          npm ci
+      - name: Run tests
+        working-directory: mobile-inspector
+        run: |
+          npm test
