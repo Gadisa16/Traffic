@@ -1,7 +1,7 @@
 # Mobile Inspector App
 
 A fast, reliable mobile application for transport inspectors in the **Sidama Region (Hawassa city), Ethiopia**. Inspectors use this app to quickly verify taxis by scanning QR codes and reviewing vehicle status.
-
+ 
 ## Features
 
 - 🔐 **Secure Authentication** - Inspector login with token-based auth and automatic session refresh
