@@ -36,6 +36,7 @@ class Vehicle(Base):
     owner = relationship("Owner", back_populates="vehicles")
     # license relationship
     license = relationship("License", uselist=False, back_populates="vehicle")
+    inspections = relationship("Inspection", back_populates="vehicle")
 
 
 class License(Base):
@@ -54,3 +55,18 @@ class User(Base):
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
     role = Column(String, nullable=False)  # 'admin' or 'inspector'
+
+
+class Inspection(Base):
+    __tablename__ = "inspections"
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), index=True, nullable=False)
+    code = Column(String, nullable=False)
+    inspector_username = Column(String, nullable=False)
+    action = Column(String, nullable=True)
+    note = Column(String, nullable=True)
+    payload_json = Column(String, nullable=True)
+    photo_url = Column(String, nullable=True)
+    inspected_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, nullable=False)
+    vehicle = relationship("Vehicle", back_populates="inspections")

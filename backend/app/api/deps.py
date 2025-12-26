@@ -62,3 +62,13 @@ def require_role(role: str):
         return user
 
     return role_checker
+
+
+def require_any_role(*roles: str):
+    def role_checker(user: models.User = Depends(get_current_user)):
+        if user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
+        return user
+
+    return role_checker

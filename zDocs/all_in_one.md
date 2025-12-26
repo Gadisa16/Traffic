@@ -295,4 +295,4 @@ To make this production-ready, I'd recommend a multi-step, gated process that's 
 what about the vehicles registration features Ui and backend please I want the detail form that include all fields like plate, side number, owner, model, multi photo upload (take photo) and any others needed for web-admin so that admin can register those vehicles and then generate qr code for that vehicles (i don't know how qr works since this is just MVP find some solution please)
 
  
-// from those 4 make detailed and comprehensive description of the app
+// please finish all the left functionalities needed for inspector resgistration (authentication), vehicle registration, edit, delete, verification and qr code generation for web-admin, mobile-inspector and backend.

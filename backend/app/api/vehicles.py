@@ -1,14 +1,121 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import FileResponse
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
 from .. import models, schemas
 from ..db import get_db
 import hashlib
-from .deps import get_current_user, require_role
+from .deps import get_current_user, require_role, require_any_role
 from datetime import date, timedelta
+import os
+import uuid
+
+import qrcode
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
+
+
+def _uploads_root() -> str:
+    here = os.path.dirname(os.path.dirname(__file__))
+    backend_root = os.path.dirname(here)
+    return os.path.join(backend_root, "uploads")
+
+
+def _mask_phone(phone: Optional[str]) -> Optional[str]:
+    if not phone:
+        return None
+    p = str(phone)
+    if len(p) <= 3:
+        return "***"
+    return f"***{p[-3:]}"
+
+
+def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
+    try:
+        if v.license and v.license.expiry_date:
+            return v.license.expiry_date.isoformat()
+    except Exception:
+        return None
+    return None
+
+
+@router.get("/verify", response_model=schemas.VehicleVerifyOut)
+def verify_vehicle(
+    code: str = Query(..., description="QR value, plate number, or side number"),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_any_role('admin', 'inspector')),
+):
+    v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(models.Vehicle.license)).filter(
+        models.Vehicle.is_deleted == 0,
+        (
+            (models.Vehicle.qr_value == code) |
+            (models.Vehicle.plate_number == code) |
+            (models.Vehicle.side_number == code)
+        )
+    ).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    owner = None
+    if v.owner:
+        owner = {
+            "name": v.owner.full_name,
+            "mask_phone": _mask_phone(v.owner.phone),
+        }
+
+    return {
+        "plate_number": v.plate_number,
+        "side_number": v.side_number,
+        "status": str(v.status.value if hasattr(v.status, 'value') else v.status),
+        "license_expiry": _license_expiry_str(v),
+        "owner": owner,
+        "qr_value": v.qr_value,
+    }
+
+
+@router.get("/qr/{qr_value}.png")
+def get_qr_png(qr_value: str):
+    path = os.path.join(_uploads_root(), "qr", f"{qr_value}.png")
+    if not os.path.exists(path):
+        raise HTTPException(status_code=404, detail="QR image not found")
+    return FileResponse(path, media_type="image/png")
+
+
+@router.post("/{vehicle_id}/qr", response_model=schemas.VehicleQrOut)
+def generate_vehicle_qr(
+    vehicle_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_role('admin')),
+):
+    v = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
+    if not v:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    if not v.qr_value:
+        v.qr_value = uuid.uuid4().hex
+        db.add(v)
+        try:
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise HTTPException(status_code=400, detail="Failed to generate QR value")
+        db.refresh(v)
+
+    root = _uploads_root()
+    qr_dir = os.path.join(root, "qr")
+    os.makedirs(qr_dir, exist_ok=True)
+    png_path = os.path.join(qr_dir, f"{v.qr_value}.png")
+
+    if not os.path.exists(png_path):
+        img = qrcode.make(v.qr_value)
+        img.save(png_path)
+
+    return {
+        "vehicle_id": v.id,
+        "qr_value": v.qr_value,
+        "qr_png_url": f"/uploads/qr/{v.qr_value}.png",
+    }
 
 
 @router.get("/", response_model=list[schemas.VehicleOut])

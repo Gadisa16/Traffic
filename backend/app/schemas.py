@@ -1,6 +1,6 @@
 from datetime import date
 from pydantic import BaseModel, constr
-from typing import Optional
+from typing import Optional, Any, Dict
 
 # Side number: exactly 4 digits, allow leading zeros
 SideNumber = constr(regex=r"^\d{4}$")
@@ -18,6 +18,50 @@ class OwnerCreate(OwnerBase):
 
 class OwnerOut(OwnerBase):
     id: int
+
+    class Config:
+        orm_mode = True
+
+
+class OwnerInspectorOut(BaseModel):
+    name: str
+    mask_phone: Optional[str] = None
+
+
+class VehicleVerifyOut(BaseModel):
+    plate_number: str
+    side_number: Optional[str] = None
+    status: str
+    license_expiry: Optional[str] = None
+    owner: Optional[OwnerInspectorOut] = None
+    qr_value: Optional[str] = None
+
+
+class VehicleQrOut(BaseModel):
+    vehicle_id: int
+    qr_value: str
+    qr_png_url: str
+
+
+class InspectionCreate(BaseModel):
+    code: str
+    when: Optional[str] = None
+    action: Optional[str] = None
+    note: Optional[str] = None
+    payload: Optional[Dict[str, Any]] = None
+
+
+class InspectionOut(BaseModel):
+    id: int
+    vehicle_id: int
+    code: str
+    inspector_username: str
+    action: Optional[str]
+    note: Optional[str]
+    payload_json: Optional[str]
+    photo_url: Optional[str]
+    inspected_at: Optional[str]
+    created_at: str
 
     class Config:
         orm_mode = True

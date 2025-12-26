@@ -9,20 +9,174 @@
       "request": {
         "method": "GET",
         "header": [],
-        "url": { "raw": "http://localhost:8000/", "host": ["http://localhost:8000"], "path": [""] }
+        "url": {
+          "raw": "http://localhost:8000/",
+          "host": [
+            "http://localhost:8000"
+          ],
+          "path": [
+            ""
+          ]
+        }
       }
     },
     {
       "name": "List Vehicles",
-      "request": { "method": "GET", "header": [], "url": { "raw": "http://localhost:8000/vehicles/", "host": ["http://localhost:8000"], "path": ["vehicles",""] } }
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://localhost:8000/vehicles/",
+          "host": [
+            "http://localhost:8000"
+          ],
+          "path": [
+            "vehicles",
+            ""
+          ]
+        }
+      }
     },
     {
       "name": "Create Vehicle",
       "request": {
         "method": "POST",
-        "header": [ { "key": "Content-Type", "value": "application/json" } ],
-        "body": { "mode": "raw", "raw": "{\n  \"plate_number\": \"PM123\",\n  \"owner\": { \"full_name\": \"Bob\", \"phone\": \"555\" }\n}" },
-        "url": { "raw": "http://localhost:8000/vehicles/", "host": ["http://localhost:8000"], "path": ["vehicles",""] }
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"plate_number\": \"PM123\",\n  \"owner\": { \"full_name\": \"Bob\", \"phone\": \"555\" }\n}"
+        },
+        "url": {
+          "raw": "http://localhost:8000/vehicles/",
+          "host": [
+            "http://localhost:8000"
+          ],
+          "path": [
+            "vehicles",
+            ""
+          ]
+        }
+      }
+    },
+    {
+      "name": "Login (form)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/x-www-form-urlencoded"
+          }
+        ],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "username",
+              "value": "admin"
+            },
+            {
+              "key": "password",
+              "value": "secret"
+            }
+          ]
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/auth/login",
+          "host": [
+            "http://127.0.0.1:8000"
+          ],
+          "path": [
+            "auth",
+            "login"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Generate Vehicle QR (admin)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/vehicles/1/qr",
+          "host": [
+            "http://127.0.0.1:8000"
+          ],
+          "path": [
+            "vehicles",
+            "1",
+            "qr"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Verify Vehicle (inspector)",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "url": {
+          "raw": "http://127.0.0.1:8000/vehicles/verify?code={{code}}",
+          "host": [
+            "http://127.0.0.1:8000"
+          ],
+          "path": [
+            "vehicles",
+            "verify"
+          ],
+          "query": [
+            {
+              "key": "code",
+              "value": "{{code}}"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Inspection (JSON)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"code\": \"{{code}}\",\n  \"action\": \"ok\",\n  \"note\": \"routine check\"\n}"
+        },
+        "url": {
+          "raw": "http://127.0.0.1:8000/inspections/",
+          "host": [
+            "http://127.0.0.1:8000"
+          ],
+          "path": [
+            "inspections",
+            ""
+          ]
+        }
       }
     }
   ]

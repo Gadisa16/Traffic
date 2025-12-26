@@ -30,6 +30,11 @@ def setup_module(module):
             username='admin', hashed_password=get_password_hash('secret'), role='admin')
         db.add(admin)
         db.commit()
+    if not db.query(models.User).filter(models.User.username == 'insp').first():
+        insp = models.User(
+            username='insp', hashed_password=get_password_hash('secret'), role='inspector')
+        db.add(insp)
+        db.commit()
     # ensure no leftover vehicles from previous runs
     try:
         db.query(models.Vehicle).delete()
@@ -70,6 +75,7 @@ def test_create_and_list_vehicle():
     assert r.status_code in (200, 201)
     data = r.json()
     assert data['plate_number'] == plate
+    vehicle_id = data['id']
 
     r2 = client.get('/vehicles/', headers=headers)
     if r2.status_code != 200:
@@ -78,3 +84,25 @@ def test_create_and_list_vehicle():
     lst = r2.json()
     assert isinstance(lst, list)
     assert any(v['plate_number'] == plate for v in lst)
+
+    # generate a QR code for the vehicle
+    r3 = client.post(f'/vehicles/{vehicle_id}/qr', headers=headers)
+    if r3.status_code != 200:
+        print('POST /vehicles/{id}/qr error:', r3.status_code, r3.text)
+    assert r3.status_code == 200
+    qr = r3.json()
+    assert qr['vehicle_id'] == vehicle_id
+    assert isinstance(qr['qr_value'], str) and len(qr['qr_value']) > 0
+    assert qr['qr_png_url'].startswith('/uploads/qr/')
+
+    # inspector can verify by qr_value
+    insp_login = client.post('/auth/login', data={'username': 'insp', 'password': 'secret'})
+    assert insp_login.status_code == 200
+    insp_token = insp_login.json()['access_token']
+    insp_headers = {'Authorization': f'Bearer {insp_token}'}
+    r4 = client.get(f"/vehicles/verify?code={qr['qr_value']}", headers=insp_headers)
+    if r4.status_code != 200:
+        print('GET /vehicles/verify error:', r4.status_code, r4.text)
+    assert r4.status_code == 200
+    v = r4.json()
+    assert v['plate_number'] == plate
