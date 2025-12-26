@@ -5,10 +5,11 @@ import {
   Keyboard,
   KeyboardAvoidingView,
   Platform,
+  TextInput as RNTextInput,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput as RNTextInput,
+  TouchableOpacity,
   TouchableWithoutFeedback,
   View,
 } from 'react-native'
@@ -18,19 +19,20 @@ import Button from '../components/Button'
 import TextInput from '../components/TextInput'
 import { useTheme } from '../context/ThemeContext'
 import * as Api from '../lib/api'
+import { getUserMessage } from '../lib/errorMapping'
 import * as Storage from '../lib/storage'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Login'>
 
 export default function LoginScreen({ navigation }: Props) {
-  const { theme, isDark } = useTheme()
+  const { theme } = useTheme()
   const insets = useSafeAreaInsets()
-  
+
   const [loading, setLoading] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [errors, setErrors] = useState<{ username?: string; password?: string }>({})
-  
+
   const passwordRef = useRef<RNTextInput>(null)
 
   const validate = () => {
@@ -50,7 +52,7 @@ export default function LoginScreen({ navigation }: Props) {
   const submit = async () => {
     Keyboard.dismiss()
     if (!validate()) return
-    
+
     setLoading(true)
     try {
       const auth = await Api.login(username.trim(), password)
@@ -62,8 +64,7 @@ export default function LoginScreen({ navigation }: Props) {
       })
       navigation.replace('Scanner')
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Login failed. Please try again.'
-      Alert.alert('Sign In Failed', message)
+      Alert.alert('Sign In Failed', getUserMessage(err))
     } finally {
       setLoading(false)
     }
@@ -147,6 +148,15 @@ export default function LoginScreen({ navigation }: Props) {
               accessibilityLabel="Sign in button"
               accessibilityHint="Tap to sign in to your account"
             />
+
+            <TouchableOpacity
+              onPress={() => navigation.navigate('Register')}
+              style={styles.linkContainer}
+              accessibilityRole="button"
+              accessibilityLabel="Create account"
+            >
+              <Text style={[styles.linkText, { color: theme.accent }]}>Don't have an account? Sign up</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Footer */}
@@ -201,6 +211,14 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: '600',
     marginBottom: 24,
+  },
+  linkContainer: {
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  linkText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   footer: {
     marginTop: 32,

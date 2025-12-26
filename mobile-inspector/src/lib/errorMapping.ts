@@ -19,7 +19,7 @@ const ERROR_MESSAGES: Record<string, { message: string; retryable: boolean }> = 
     message: 'Request timed out. Please try again.',
     retryable: true,
   },
-  
+
   // Auth errors
   AUTH_INVALID_CREDENTIALS: {
     message: 'Invalid username or password. Please try again.',
@@ -33,7 +33,7 @@ const ERROR_MESSAGES: Record<string, { message: string; retryable: boolean }> = 
     message: 'You are not authorized to perform this action.',
     retryable: false,
   },
-  
+
   // Vehicle errors
   VEHICLE_NOT_FOUND: {
     message: 'Vehicle not found. Please check the code and try again.',
@@ -43,7 +43,7 @@ const ERROR_MESSAGES: Record<string, { message: string; retryable: boolean }> = 
     message: 'Invalid vehicle code format.',
     retryable: false,
   },
-  
+
   // Server errors
   SERVER_ERROR: {
     message: 'Something went wrong on our end. Please try again later.',
@@ -53,7 +53,7 @@ const ERROR_MESSAGES: Record<string, { message: string; retryable: boolean }> = 
     message: 'Service temporarily unavailable. Please try again later.',
     retryable: true,
   },
-  
+
   // Generic
   UNKNOWN_ERROR: {
     message: 'An unexpected error occurred. Please try again.',
@@ -69,7 +69,9 @@ export function mapError(error: any): AppError {
   if (error?.isAxiosError || error?.response) {
     const status = error.response?.status
     const serverCode = error.response?.data?.code
-    const serverMessage = error.response?.data?.message
+    const serverMessage =
+      error.response?.data?.message ??
+      error.response?.data?.detail
 
     // First check for server-provided error code
     if (serverCode && ERROR_MESSAGES[serverCode]) {
@@ -91,6 +93,14 @@ export function mapError(error: any): AppError {
           retryable: false,
         }
       case 401:
+        if (serverMessage && String(serverMessage).toLowerCase().includes('invalid credentials')) {
+          return {
+            code: 'AUTH_INVALID_CREDENTIALS',
+            message: String(serverMessage),
+            userMessage: ERROR_MESSAGES.AUTH_INVALID_CREDENTIALS.message,
+            retryable: ERROR_MESSAGES.AUTH_INVALID_CREDENTIALS.retryable,
+          }
+        }
         return {
           code: 'AUTH_UNAUTHORIZED',
           message: serverMessage || 'Unauthorized',

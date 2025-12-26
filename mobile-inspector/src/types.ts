@@ -66,6 +66,7 @@ export interface ApiError {
 // Navigation types
 export type RootStackParamList = {
   Login: undefined
+  Register: undefined
   Scanner: undefined
   Verify: { code: string; fromRecent?: boolean }
   Recent: undefined

@@ -9,6 +9,7 @@ import * as Api from './lib/api'
 import * as Offline from './lib/offline'
 import * as Storage from './lib/storage'
 import LoginScreen from './screens/LoginScreen'
+import RegisterScreen from './screens/RegisterScreen'
 import RecentScansScreen from './screens/RecentScansScreen'
 import ScannerScreen from './screens/ScannerScreen'
 import SettingsScreen from './screens/SettingsScreen'
@@ -16,6 +17,7 @@ import VerifyScreen from './screens/VerifyScreen'
 
 export type RootStackParamList = {
   Login: undefined
+  Register: undefined
   Scanner: undefined
   Verify: { code: string; fromRecent?: boolean }
   Recent: undefined
@@ -119,6 +121,7 @@ function AppNavigator() {
           }}
         >
           <Stack.Screen name="Login" component={LoginScreen} />
+          <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="Scanner" component={ScannerScreen} />
           <Stack.Screen name="Verify" component={VerifyScreen} />
           <Stack.Screen name="Recent" component={RecentScansScreen} />

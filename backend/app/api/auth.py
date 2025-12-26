@@ -1,7 +1,9 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Body, Form
 import os
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import BaseModel
+from typing import Optional
 from ..schemas import Token, UserOut
 from ..db import get_db
 from .. import models
@@ -10,15 +12,46 @@ from .deps import verify_password, create_access_token, get_password_hash, get_c
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
+class LoginBody(BaseModel):
+    username: str
+    password: str
+
+
+class RegisterBody(BaseModel):
+    username: str
+    password: str
+    role: str = "admin"
+
+
 @router.post("/login", response_model=Token)
-def login(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    user = db.query(models.User).filter(
-        models.User.username == form_data.username).first()
+def login(
+    form_data: Optional[OAuth2PasswordRequestForm] = Depends(None),
+    body: Optional[LoginBody] = Body(None),
+    username: Optional[str] = Form(None),
+    password: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    u = None
+    p = None
+    if body is not None:
+        u = body.username
+        p = body.password
+    elif form_data is not None and getattr(form_data, 'username', None) is not None:
+        u = form_data.username
+        p = form_data.password
+    else:
+        u = username
+        p = password
+
+    if not u or not p:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Missing username or password")
+
+    user = db.query(models.User).filter(models.User.username == u).first()
     if not user:
         # Do not reveal whether user exists; return generic auth error
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if not verify_password(form_data.password, user.hashed_password):
+    if not verify_password(p, user.hashed_password):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
@@ -36,11 +69,25 @@ def refresh_token(current_user: models.User = Depends(get_current_user)):
 
 
 @router.post("/register", response_model=Token)
-def register(username: str, password: str, role: str = "admin", db: Session = Depends(get_db)):
+def register(
+    body: Optional[RegisterBody] = Body(None),
+    username: Optional[str] = None,
+    password: Optional[str] = None,
+    role: str = "admin",
+    db: Session = Depends(get_db),
+):
     """
     Register a new user. Allowed only when no users exist or when ALLOW_REGISTRATION env var is set to 'true'.
     This prevents accidental open registration in production.
     """
+    if body is not None:
+        username = body.username
+        password = body.password
+        role = body.role
+
+    if not username or not password:
+        raise HTTPException(status_code=400, detail="Missing username or password")
+
     allow = os.getenv("ALLOW_REGISTRATION", "false").lower() == "true"
     existing = db.query(models.User).first()
     if existing and not allow:
