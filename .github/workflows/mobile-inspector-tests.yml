@@ -19,10 +19,11 @@ jobs:
         with:
           node-version: "18"
           cache: "npm"
+          cache-dependency-path: mobile-inspector/package-lock.json
       - name: Install dependencies
         working-directory: mobile-inspector
         run: |
-          npm ci
+          npm ci --legacy-peer-deps
       - name: Run tests
         working-directory: mobile-inspector
         run: |
