@@ -28,6 +28,11 @@ class Vehicle(Base):
     # Side Number: 4-digit operational ID painted on the vehicle (allow leading zeros)
     side_number = Column(String, unique=True, index=True, nullable=True)
     qr_value = Column(String, unique=True, index=True, nullable=True)
+    vehicle_type = Column(String, nullable=True)
+    make = Column(String, nullable=True)
+    model = Column(String, nullable=True)
+    color = Column(String, nullable=True)
+    year = Column(Integer, nullable=True)
     status = Column(Enum(StatusEnum), default=StatusEnum.active)
     # Soft-delete support
     is_deleted = Column(Integer, default=0, nullable=False)
@@ -37,6 +42,7 @@ class Vehicle(Base):
     # license relationship
     license = relationship("License", uselist=False, back_populates="vehicle")
     inspections = relationship("Inspection", back_populates="vehicle")
+    photos = relationship("VehiclePhoto", back_populates="vehicle")
 
 
 class License(Base):
@@ -54,7 +60,18 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String, unique=True, index=True, nullable=False)
     hashed_password = Column(String, nullable=False)
-    role = Column(String, nullable=False)  # 'admin' or 'inspector'
+    # Role: 'public', 'inspector', 'admin', 'super_admin'
+    role = Column(String, nullable=False)
+    # Status: 'pending', 'pending_verification', 'active', 'rejected', 'disabled'
+    status = Column(String, nullable=False, default='active')
+    email = Column(String, unique=True, index=True, nullable=True)
+    phone = Column(String, unique=True, index=True, nullable=True)
+    email_verified = Column(Integer, default=0, nullable=False)
+    phone_verified = Column(Integer, default=0, nullable=False)
+    created_at = Column(DateTime, nullable=True)
+    updated_at = Column(DateTime, nullable=True)
+
+    documents = relationship("UserDocument", back_populates="user")
 
 
 class Inspection(Base):
@@ -70,3 +87,33 @@ class Inspection(Base):
     inspected_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, nullable=False)
     vehicle = relationship("Vehicle", back_populates="inspections")
+
+
+class UserDocument(Base):
+    __tablename__ = "user_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    doc_type = Column(String, nullable=False)
+    file_bucket = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_url = Column(String, nullable=False)
+    status = Column(String, nullable=False, default='pending')  # pending/approved/rejected
+    rejection_reason = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by_user_id = Column(Integer, nullable=True)
+
+    user = relationship("User", back_populates="documents")
+
+
+class VehiclePhoto(Base):
+    __tablename__ = "vehicle_photos"
+    id = Column(Integer, primary_key=True, index=True)
+    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), index=True, nullable=False)
+    file_bucket = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_url = Column(String, nullable=False)
+    kind = Column(String, nullable=True)
+    created_at = Column(DateTime, nullable=True)
+
+    vehicle = relationship("Vehicle", back_populates="photos")

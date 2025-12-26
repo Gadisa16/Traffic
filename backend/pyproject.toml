@@ -11,7 +11,7 @@ fastapi = "0.100.0"
 uvicorn = {extras = ["standard"], version = "0.22.0"}
 sqlalchemy = "2.0.20"
 alembic = "1.11.1"
-psycopg2-binary = "2.9.7"
+# psycopg2-binary removed to avoid system build deps during local testing
 pydantic = "1.10.12"
 python-jose = "3.3.0"
 passlib = {extras = ["bcrypt"], version = "1.7.4"}
@@ -19,11 +19,11 @@ python-dotenv = "1.0.0"
 python-multipart = "0.0.6"
 qrcode = "7.4.2"
 pillow = "10.4.0"
+httpx = "0.26.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^7.4"
 # pytest-cov removed due to Poetry resolution issues; add back if needed with a compatible version
-httpx = "^0.26"
 # pytest-asyncio removed because of resolution issues; add back if needed with a compatible version
 
 [build-system]

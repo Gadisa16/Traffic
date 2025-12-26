@@ -38,6 +38,11 @@ __pycache__/
 backend/.env
 web-admin/.env.local
 
+# Allow example env templates to be committed
+!.env.example
+!**/.env.example
+!**/.env.*.example
+
 # Virtual environments
 backend/.venv/
 .venv/

@@ -54,8 +54,23 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
     return user
 
 
+def require_status(*statuses: str):
+    def status_checker(user: models.User = Depends(get_current_user)):
+        s = getattr(user, 'status', None) or 'active'
+        if s not in statuses:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Account not active")
+        return user
+
+    return status_checker
+
+
 def require_role(role: str):
     def role_checker(user: models.User = Depends(get_current_user)):
+        s = getattr(user, 'status', None) or 'active'
+        if s != 'active':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Account not active")
         if user.role != role:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")
@@ -66,6 +81,10 @@ def require_role(role: str):
 
 def require_any_role(*roles: str):
     def role_checker(user: models.User = Depends(get_current_user)):
+        s = getattr(user, 'status', None) or 'active'
+        if s != 'active':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Account not active")
         if user.role not in roles:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden")

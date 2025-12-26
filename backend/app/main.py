@@ -3,8 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError, ResponseValidationError
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
-import os
 import traceback
 
 app = FastAPI(title="Taxi Registration API", version="0.1.0")
@@ -30,14 +28,6 @@ def on_startup():
         create_tables()
     except Exception:
         pass
-
-
-uploads_dir = os.path.join(os.path.dirname(__file__), "..", "uploads")
-try:
-    os.makedirs(uploads_dir, exist_ok=True)
-except Exception:
-    pass
-app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 @app.exception_handler(ResponseValidationError)
@@ -72,11 +62,12 @@ async def request_validation_exception_handler(request, exc: RequestValidationEr
 
 # Routers will be included here
 try:
-    from .api import auth, vehicles, owners, inspections  # noqa: E402
+    from .api import auth, vehicles, owners, inspections, admin  # noqa: E402
     app.include_router(auth.router)
     app.include_router(vehicles.router)
     app.include_router(owners.router)
     app.include_router(inspections.router)
+    app.include_router(admin.router)
 except Exception as e:
     # Log import errors so they are visible during development
     import traceback

@@ -26,7 +26,7 @@ def setup_module(module):
     db = SessionLocal()
     if not db.query(models.User).filter(models.User.username == 'admin').first():
         admin = models.User(
-            username='admin', hashed_password=get_password_hash('secret'), role='admin')
+            username='admin', hashed_password=get_password_hash('secret'), role='admin', status='active')
         db.add(admin)
         db.commit()
     db.close()

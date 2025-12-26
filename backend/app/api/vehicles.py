@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse
+from fastapi import UploadFile, File, Form
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
@@ -10,16 +11,18 @@ from .deps import get_current_user, require_role, require_any_role
 from datetime import date, timedelta
 import os
 import uuid
+import io
+import datetime
 
 import qrcode
+
+from ..storage import upload_bytes
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 
-def _uploads_root() -> str:
-    here = os.path.dirname(os.path.dirname(__file__))
-    backend_root = os.path.dirname(here)
-    return os.path.join(backend_root, "uploads")
+def require_admin(user: models.User = Depends(require_any_role('admin', 'super_admin'))):
+    return user
 
 
 def _mask_phone(phone: Optional[str]) -> Optional[str]:
@@ -44,7 +47,7 @@ def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
 def verify_vehicle(
     code: str = Query(..., description="QR value, plate number, or side number"),
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_any_role('admin', 'inspector')),
+    user: models.User = Depends(require_any_role('admin', 'super_admin', 'inspector', 'public')),
 ):
     v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(models.Vehicle.license)).filter(
         models.Vehicle.is_deleted == 0,
@@ -58,7 +61,7 @@ def verify_vehicle(
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
     owner = None
-    if v.owner:
+    if v.owner and user.role != 'public':
         owner = {
             "name": v.owner.full_name,
             "mask_phone": _mask_phone(v.owner.phone),
@@ -76,17 +79,16 @@ def verify_vehicle(
 
 @router.get("/qr/{qr_value}.png")
 def get_qr_png(qr_value: str):
-    path = os.path.join(_uploads_root(), "qr", f"{qr_value}.png")
-    if not os.path.exists(path):
-        raise HTTPException(status_code=404, detail="QR image not found")
-    return FileResponse(path, media_type="image/png")
+    # Legacy endpoint: QR images are now stored in external storage.
+    # Return 404 so clients use the URL returned by POST /vehicles/{id}/qr.
+    raise HTTPException(status_code=404, detail="QR image not served here; use qr_png_url from /vehicles/{id}/qr")
 
 
 @router.post("/{vehicle_id}/qr", response_model=schemas.VehicleQrOut)
 def generate_vehicle_qr(
     vehicle_id: int,
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_role('admin')),
+    user: models.User = Depends(require_admin),
 ):
     v = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
@@ -102,20 +104,61 @@ def generate_vehicle_qr(
             raise HTTPException(status_code=400, detail="Failed to generate QR value")
         db.refresh(v)
 
-    root = _uploads_root()
-    qr_dir = os.path.join(root, "qr")
-    os.makedirs(qr_dir, exist_ok=True)
-    png_path = os.path.join(qr_dir, f"{v.qr_value}.png")
-
-    if not os.path.exists(png_path):
-        img = qrcode.make(v.qr_value)
-        img.save(png_path)
+    img = qrcode.make(v.qr_value)
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    _, public_url = upload_bytes(
+        folder='qr',
+        filename=f"{v.qr_value}.png",
+        content=buf.getvalue(),
+        content_type='image/png',
+    )
 
     return {
         "vehicle_id": v.id,
         "qr_value": v.qr_value,
-        "qr_png_url": f"/uploads/qr/{v.qr_value}.png",
+        "qr_png_url": public_url,
     }
+
+
+@router.post("/{vehicle_id}/photos", response_model=list[schemas.VehiclePhotoOut])
+def upload_vehicle_photos(
+    vehicle_id: int,
+    files: list[UploadFile] = File(...),
+    kind: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_admin),
+):
+    v = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
+    if not v:
+        raise HTTPException(status_code=404, detail='Vehicle not found')
+
+    out: list[models.VehiclePhoto] = []
+    for f in files:
+        content = f.file.read()
+        content_type = f.content_type or 'application/octet-stream'
+        filename = f.filename or f"{uuid.uuid4().hex}"
+        path, url = upload_bytes(
+            folder=f"vehicles/{vehicle_id}",
+            filename=filename,
+            content=content,
+            content_type=content_type,
+        )
+        photo = models.VehiclePhoto(
+            vehicle_id=vehicle_id,
+            file_bucket=os.getenv('SUPABASE_STORAGE_BUCKET', 'traffic-files'),
+            file_path=path,
+            file_url=url,
+            kind=kind,
+            created_at=datetime.datetime.utcnow(),
+        )
+        db.add(photo)
+        out.append(photo)
+
+    db.commit()
+    for p in out:
+        db.refresh(p)
+    return out
 
 
 @router.get("/", response_model=list[schemas.VehicleOut])
@@ -131,8 +174,11 @@ def list_vehicles(
     - `plate`: substring match (case-insensitive)
     - `side`: exact 4-digit side number
     """
-    qs = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
-        models.Vehicle.license)).filter(models.Vehicle.is_deleted == 0)
+    qs = db.query(models.Vehicle).options(
+        joinedload(models.Vehicle.owner),
+        joinedload(models.Vehicle.license),
+        joinedload(models.Vehicle.photos),
+    ).filter(models.Vehicle.is_deleted == 0)
     if plate:
         # case-insensitive substring match
         try:
@@ -146,8 +192,11 @@ def list_vehicles(
 
 @router.get("/{vehicle_id}", response_model=schemas.VehicleOut)
 def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
-        models.Vehicle.license)).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
+    v = db.query(models.Vehicle).options(
+        joinedload(models.Vehicle.owner),
+        joinedload(models.Vehicle.license),
+        joinedload(models.Vehicle.photos),
+    ).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return v
@@ -155,8 +204,11 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: mo
 
 @router.get("/by_plate/{plate}", response_model=schemas.VehicleOut)
 def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
-        models.Vehicle.license)).filter(models.Vehicle.plate_number == plate, models.Vehicle.is_deleted == 0).first()
+    v = db.query(models.Vehicle).options(
+        joinedload(models.Vehicle.owner),
+        joinedload(models.Vehicle.license),
+        joinedload(models.Vehicle.photos),
+    ).filter(models.Vehicle.plate_number == plate, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return v
@@ -164,8 +216,11 @@ def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models
 
 @router.get("/by_qr/{qr}", response_model=schemas.VehicleOut)
 def get_by_qr(qr: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
-        models.Vehicle.license)).filter(models.Vehicle.qr_value == qr, models.Vehicle.is_deleted == 0).first()
+    v = db.query(models.Vehicle).options(
+        joinedload(models.Vehicle.owner),
+        joinedload(models.Vehicle.license),
+        joinedload(models.Vehicle.photos),
+    ).filter(models.Vehicle.qr_value == qr, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return v
@@ -173,15 +228,18 @@ def get_by_qr(qr: str, db: Session = Depends(get_db), current_user: models.User 
 
 @router.get("/by_side/{side}", response_model=schemas.VehicleOut)
 def get_by_side(side: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
-    v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
-        models.Vehicle.license)).filter(models.Vehicle.side_number == side, models.Vehicle.is_deleted == 0).first()
+    v = db.query(models.Vehicle).options(
+        joinedload(models.Vehicle.owner),
+        joinedload(models.Vehicle.license),
+        joinedload(models.Vehicle.photos),
+    ).filter(models.Vehicle.side_number == side, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     return v
 
 
 @router.post("/", response_model=schemas.VehicleOut)
-def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db), user: models.User = Depends(require_role('admin'))):
+def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     # owner
     owner_obj = None
     if payload.owner:
@@ -200,6 +258,11 @@ def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db)
         qr_value=payload.qr_value,
         side_number=payload.side_number if getattr(
             payload, 'side_number', None) else None,
+        vehicle_type=getattr(payload, 'vehicle_type', None),
+        make=getattr(payload, 'make', None),
+        model=getattr(payload, 'model', None),
+        color=getattr(payload, 'color', None),
+        year=getattr(payload, 'year', None),
         status=payload.status or models.StatusEnum.active,
         owner_id=owner_obj.id if owner_obj else None
     )
@@ -227,7 +290,7 @@ def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db)
 
 
 @router.put("/{vehicle_id}", response_model=schemas.VehicleOut)
-def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session = Depends(get_db), user: models.User = Depends(require_role('admin'))):
+def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).filter(models.Vehicle.id ==
                                         vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
@@ -244,6 +307,17 @@ def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session 
             v.status = models.StatusEnum(payload.status)
         except Exception:
             v.status = models.StatusEnum.active
+
+    if getattr(payload, 'vehicle_type', None) is not None:
+        v.vehicle_type = payload.vehicle_type
+    if getattr(payload, 'make', None) is not None:
+        v.make = payload.make
+    if getattr(payload, 'model', None) is not None:
+        v.model = payload.model
+    if getattr(payload, 'color', None) is not None:
+        v.color = payload.color
+    if getattr(payload, 'year', None) is not None:
+        v.year = payload.year
 
     # owner handling: update existing or create new
     if payload.owner:
@@ -288,7 +362,7 @@ def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session 
 
 
 @router.delete("/{vehicle_id}")
-def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_role('admin'))):
+def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).filter(models.Vehicle.id ==
                                         vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
@@ -303,7 +377,7 @@ def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.
 
 
 @router.post("/{vehicle_id}/undelete", response_model=schemas.VehicleOut)
-def undelete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_role('admin'))):
+def undelete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
         models.Vehicle.license)).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 1).first()
     if not v:
@@ -318,14 +392,14 @@ def undelete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: model
 
 
 @router.get("/deleted", response_model=list[schemas.VehicleOut])
-def list_deleted(db: Session = Depends(get_db), user: models.User = Depends(require_role('admin'))):
+def list_deleted(db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     qs = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
         models.Vehicle.license)).filter(models.Vehicle.is_deleted == 1).all()
     return qs
 
 
 @router.post("/{vehicle_id}/purge")
-def purge_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_role('admin'))):
+def purge_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     # permanently remove vehicle and associated license (owner left intact)
     v = db.query(models.Vehicle).options(joinedload(models.Vehicle.license)).filter(
         models.Vehicle.id == vehicle_id).first()

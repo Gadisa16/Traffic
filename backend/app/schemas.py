@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel, constr
 from typing import Optional, Any, Dict
 
@@ -43,6 +43,16 @@ class VehicleQrOut(BaseModel):
     qr_png_url: str
 
 
+class VehiclePhotoOut(BaseModel):
+    id: int
+    file_url: str
+    kind: Optional[str] = None
+    created_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+
 class InspectionCreate(BaseModel):
     code: str
     when: Optional[str] = None
@@ -60,8 +70,8 @@ class InspectionOut(BaseModel):
     note: Optional[str]
     payload_json: Optional[str]
     photo_url: Optional[str]
-    inspected_at: Optional[str]
-    created_at: str
+    inspected_at: Optional[datetime]
+    created_at: datetime
 
     class Config:
         orm_mode = True
@@ -81,6 +91,11 @@ class LicenseOut(LicenseBase):
 class VehicleBase(BaseModel):
     plate_number: str
     side_number: Optional[SideNumber]
+    vehicle_type: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    color: Optional[str] = None
+    year: Optional[int] = None
 
 
 class LicenseCreate(LicenseBase):
@@ -101,6 +116,11 @@ class VehicleUpdate(BaseModel):
     owner: Optional[OwnerCreate]
     license: Optional[LicenseCreate]
     side_number: Optional[SideNumber]
+    vehicle_type: Optional[str] = None
+    make: Optional[str] = None
+    model: Optional[str] = None
+    color: Optional[str] = None
+    year: Optional[int] = None
 
 
 class VehicleOut(VehicleBase):
@@ -110,6 +130,7 @@ class VehicleOut(VehicleBase):
     owner: Optional[OwnerOut]
     license: Optional[LicenseOut] = None
     side_number: Optional[str]
+    photos: Optional[list[VehiclePhotoOut]] = None
 
     class Config:
         orm_mode = True
@@ -124,6 +145,39 @@ class UserOut(BaseModel):
     id: int
     username: str
     role: str
+    status: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    email_verified: Optional[int] = None
+    phone_verified: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class RegisterBody(BaseModel):
+    username: str
+    password: str
+    role: str = "public"  # public/inspector/admin
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class VerifyOtpBody(BaseModel):
+    otp: str
+    method: str  # email or phone
+
+
+class UserDocumentOut(BaseModel):
+    id: int
+    user_id: int
+    doc_type: str
+    file_url: str
+    status: str
+    rejection_reason: Optional[str] = None
+    uploaded_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
+    reviewed_by_user_id: Optional[int] = None
 
     class Config:
         orm_mode = True

@@ -1,47 +1,39 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
 from sqlalchemy.orm import Session
 from typing import Optional
-import os
 import json
 import datetime
-import uuid
 
 from ..db import get_db
 from .. import models, schemas
-from .deps import get_current_user, require_any_role
+from .deps import require_any_role
+
+from ..storage import upload_bytes
 
 router = APIRouter(prefix="/inspections", tags=["inspections"])
 
 
-def _uploads_root() -> str:
-    here = os.path.dirname(os.path.dirname(__file__))
-    # backend/app/api -> backend/app -> backend
-    backend_root = os.path.dirname(here)
-    return os.path.join(backend_root, "uploads")
-
-
-def _ensure_dir(p: str) -> None:
-    os.makedirs(p, exist_ok=True)
-
-
-def _save_upload(file: UploadFile, subdir: str) -> str:
-    root = _uploads_root()
-    target_dir = os.path.join(root, subdir)
-    _ensure_dir(target_dir)
-
-    ext = os.path.splitext(file.filename or "")[1] or ".jpg"
-    name = f"{uuid.uuid4().hex}{ext}"
-    abs_path = os.path.join(target_dir, name)
-
-    with open(abs_path, "wb") as out:
-        out.write(file.file.read())
-
-    rel = os.path.relpath(abs_path, root).replace("\\", "/")
-    return f"/uploads/{rel}"
+def _parse_when(when: Optional[str]) -> Optional[datetime.datetime]:
+    if not when:
+        return None
+    s = str(when).strip()
+    if not s:
+        return None
+    # accept milliseconds timestamp
+    try:
+        if s.isdigit():
+            return datetime.datetime.fromtimestamp(float(s) / 1000.0)
+    except Exception:
+        pass
+    # accept isoformat
+    try:
+        return datetime.datetime.fromisoformat(s)
+    except Exception:
+        return None
 
 
 @router.post("/", response_model=schemas.InspectionOut)
-def create_inspection(
+async def create_inspection(
     payload: Optional[schemas.InspectionCreate] = Body(None),
     code: Optional[str] = Form(None),
     when: Optional[str] = Form(None),
@@ -52,22 +44,17 @@ def create_inspection(
     db: Session = Depends(get_db),
     user: models.User = Depends(require_any_role("admin", "inspector")),
 ):
+    raw_extra = None
     if payload is not None:
         code = payload.code
         action = payload.action
         note = payload.note
-        when_dt = payload.when
+        when_dt = _parse_when(payload.when)
         raw_extra = payload.payload
     else:
         if not code:
             raise HTTPException(status_code=400, detail="Missing code")
-        when_dt = None
-        if when:
-            try:
-                when_dt = datetime.datetime.fromtimestamp(float(when) / 1000.0)
-            except Exception:
-                when_dt = None
-        raw_extra = None
+        when_dt = _parse_when(when)
         if extra_payload:
             try:
                 raw_extra = json.loads(extra_payload)
@@ -85,7 +72,15 @@ def create_inspection(
 
     photo_url = None
     if photo is not None:
-        photo_url = _save_upload(photo, "inspections")
+        content = await photo.read()
+        content_type = photo.content_type or 'application/octet-stream'
+        filename = photo.filename
+        _, photo_url = upload_bytes(
+            folder=f"inspections/{v.id}",
+            filename=filename,
+            content=content,
+            content_type=content_type,
+        )
 
     ins = models.Inspection(
         vehicle_id=v.id,

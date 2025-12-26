@@ -2,7 +2,7 @@ import axios from 'axios'
 import * as Storage from './storage'
 
 // Default backend host; override for local device testing
-const BACKEND_HOST = 'http://102.218.50.25:8000'
+const BACKEND_HOST = (process.env.EXPO_PUBLIC_API_URL || 'http://127.0.0.1:8000')
 const client = axios.create({ baseURL: BACKEND_HOST, timeout: 10000 })
 
 // simple session expired callback (set by app)

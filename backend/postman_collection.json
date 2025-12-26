@@ -10,9 +10,9 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8000/",
+          "raw": "http://127.0.0.1:8000/",
           "host": [
-            "http://localhost:8000"
+            "http://127.0.0.1:8000"
           ],
           "path": [
             ""
@@ -26,9 +26,9 @@
         "method": "GET",
         "header": [],
         "url": {
-          "raw": "http://localhost:8000/vehicles/",
+          "raw": "http://127.0.0.1:8000/vehicles/",
           "host": [
-            "http://localhost:8000"
+            "http://127.0.0.1:8000"
           ],
           "path": [
             "vehicles",
@@ -52,9 +52,9 @@
           "raw": "{\n  \"plate_number\": \"PM123\",\n  \"owner\": { \"full_name\": \"Bob\", \"phone\": \"555\" }\n}"
         },
         "url": {
-          "raw": "http://localhost:8000/vehicles/",
+          "raw": "http://127.0.0.1:8000/vehicles/",
           "host": [
-            "http://localhost:8000"
+            "http://127.0.0.1:8000"
           ],
           "path": [
             "vehicles",
