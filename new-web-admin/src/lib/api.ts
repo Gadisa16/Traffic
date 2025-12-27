@@ -182,3 +182,34 @@ export async function updateOwner(id: string, owner: any): Promise<any> {
 export async function deleteOwner(id: string): Promise<any> {
     return fetchJson(`/owners/${id}`, { method: 'DELETE' });
 }
+
+// Vehicle Photo API methods
+export async function uploadVehiclePhotos(vehicleId: string, files: File[], kind?: string): Promise<any[]> {
+    const formData = new FormData();
+    files.forEach(file => {
+        formData.append('files', file);
+    });
+    if (kind) {
+        formData.append('kind', kind);
+    }
+
+    const token = getAccessToken();
+    const response = await fetch(`${getBaseUrl()}/vehicles/${vehicleId}/photos`, {
+        method: 'POST',
+        headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to upload photos');
+    }
+
+    return response.json();
+}
+
+export async function deleteVehiclePhoto(vehicleId: string, photoId: string): Promise<any> {
+    return fetchJson(`/vehicles/${vehicleId}/photos/${photoId}`, { method: 'DELETE' });
+}

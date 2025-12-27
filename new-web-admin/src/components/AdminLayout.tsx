@@ -27,7 +27,7 @@ const navItems = [
   { path: '/admin/trash', icon: Trash2, label: 'Trash' },
 ];
 
-export function AdminLayout({ children }: { children: React.ReactNode }) {
+export function AdminLayout({ children }: { readonly children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();

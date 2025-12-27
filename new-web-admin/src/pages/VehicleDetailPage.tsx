@@ -1,81 +1,40 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
 import { AdminLayout } from '@/components/AdminLayout';
-import { PageHeader } from '@/components/PageHeader';
 import { LicenseStatusBadge } from '@/components/LicenseStatusBadge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { PageHeader } from '@/components/PageHeader';
+import { VehicleImageUpload } from '@/components/VehicleImageUpload';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
-import { getLicenseStatus, getDaysUntilExpiry } from '@/hooks/useVehicles';
-import { toast } from 'sonner';
-import { 
-  Car, ArrowLeft, Edit, Trash2, User, Phone, MapPin, 
-  Calendar, Clock, FileText, QrCode
+import { getDaysUntilExpiry, getLicenseStatus, useSoftDeleteVehicle, useVehicle } from '@/hooks/useVehicles';
+import * as Api from '@/lib/api';
+import {
+  ArrowLeft,
+  Calendar,
+  Car,
+  Clock,
+  Edit,
+  FileText,
+  Image as ImageIcon,
+  MapPin,
+  Phone,
+  QrCode,
+  Trash2, User
 } from 'lucide-react';
-
-interface VehicleDetail {
-  id: string;
-  plate_number: string;
-  make: string;
-  model: string;
-  year: number;
-  color: string;
-  status: string;
-  license_start_date: string;
-  license_expiry_date: string;
-  created_at: string;
-  updated_at: string;
-  owners: {
-    id: string;
-    full_name: string;
-    phone: string;
-    address: string | null;
-    tin_number: string;
-  } | null;
-}
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function VehicleDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [vehicle, setVehicle] = useState<VehicleDetail | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  useEffect(() => {
-    if (id) fetchVehicle(id);
-  }, [id]);
-
-  const fetchVehicle = async (vehicleId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*, owners(*)')
-        .eq('id', vehicleId)
-        .single();
-
-      if (error) throw error;
-      setVehicle(data as VehicleDetail);
-    } catch (err) {
-      console.error('Error:', err);
-      toast.error('Vehicle not found');
-      navigate('/admin/vehicles');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { data: vehicle, isLoading } = useVehicle(id || '');
+  const softDeleteMutation = useSoftDeleteVehicle();
 
   const handleDelete = async () => {
     if (!vehicle || !confirm('Move this vehicle to trash?')) return;
-    
-    try {
-      const { error } = await supabase
-        .from('vehicles')
-        .update({ status: 'deleted', deleted_at: new Date().toISOString() })
-        .eq('id', vehicle.id);
 
-      if (error) throw error;
-      toast.success('Vehicle moved to trash');
+    try {
+      await softDeleteMutation.mutateAsync(vehicle.id.toString());
       navigate('/admin/vehicles');
     } catch (err) {
       toast.error('Failed to delete vehicle');
@@ -96,8 +55,8 @@ export default function VehicleDetailPage() {
 
   if (!vehicle) return null;
 
-  const licenseStatus = getLicenseStatus(vehicle.license_expiry_date);
-  const daysUntilExpiry = getDaysUntilExpiry(vehicle.license_expiry_date);
+  const licenseStatus = vehicle.license?.expiry_date ? getLicenseStatus(vehicle.license.expiry_date) : 'expired';
+  const daysUntilExpiry = vehicle.license?.expiry_date ? getDaysUntilExpiry(vehicle.license.expiry_date) : 0;
 
   return (
     <AdminLayout>
@@ -183,7 +142,7 @@ export default function VehicleDetailPage() {
                     Start Date
                   </p>
                   <p className="font-medium text-foreground">
-                    {new Date(vehicle.license_start_date).toLocaleDateString()}
+                    {vehicle.license?.start_date ? new Date(vehicle.license.start_date).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
                 <div className="p-4 rounded-lg bg-muted/50">
@@ -192,7 +151,7 @@ export default function VehicleDetailPage() {
                     Expiry Date
                   </p>
                   <p className="font-medium text-foreground">
-                    {new Date(vehicle.license_expiry_date).toLocaleDateString()}
+                    {vehicle.license?.expiry_date ? new Date(vehicle.license.expiry_date).toLocaleDateString() : 'N/A'}
                   </p>
                 </div>
               </div>
@@ -249,6 +208,30 @@ export default function VehicleDetailPage() {
                 </Button>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Vehicle Images */}
+        <Card variant="elevated" className="lg:col-span-3">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <ImageIcon className="h-5 w-5 text-primary" />
+              Vehicle Images
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <VehicleImageUpload
+              vehicleId={vehicle.id.toString()}
+              existingImages={vehicle.photos || []}
+              onUpload={async (files) => {
+                await Api.uploadVehiclePhotos(vehicle.id.toString(), files);
+                window.location.reload();
+              }}
+              onDelete={async (photoId) => {
+                await Api.deleteVehiclePhoto(vehicle.id.toString(), photoId.toString());
+              }}
+              maxImages={10}
+            />
           </CardContent>
         </Card>
 

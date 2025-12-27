@@ -62,9 +62,9 @@ export default function VehicleFormPage() {
         model: vehicleData.model || '',
         year: vehicleData.year || new Date().getFullYear(),
         color: vehicleData.color || '',
-        license_start_date: vehicleData.license?.start_date || new Date().toISOString().split('T')[0],
-        license_expiry_date: vehicleData.license?.expiry_date || '',
-        owner_id: vehicleData.owner?.id?.toString() || 'none',
+        license_start_date: vehicleData.license_start_date || new Date().toISOString().split('T')[0],
+        license_expiry_date: vehicleData.license_expiry_date || '',
+        owner_id: vehicleData.owners?.id?.toString() || 'none',
         status: vehicleData.status === 'deleted' ? 'suspended' : (vehicleData.status as 'active' | 'suspended'),
       });
       setIsFetching(false);
@@ -302,6 +302,33 @@ export default function VehicleFormPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Vehicle Images */}
+        {isEditing && id && (
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                Vehicle Images
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VehicleImageUpload
+                vehicleId={id}
+                existingImages={vehicleData?.photos || []}
+                onUpload={async (files) => {
+                  await Api.uploadVehiclePhotos(id, files);
+                  // Refetch vehicle data to get updated photos
+                  window.location.reload();
+                }}
+                onDelete={async (photoId) => {
+                  await Api.deleteVehiclePhoto(id, photoId.toString());
+                }}
+                maxImages={10}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-3 mt-6">

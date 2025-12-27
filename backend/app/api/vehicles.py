@@ -401,19 +401,35 @@ def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session 
     return v
 
 
+@router.delete("/{vehicle_id}/photos/{photo_id}")
+def delete_vehicle_photo(
+    vehicle_id: int,
+    photo_id: int,
+    db: Session = Depends(get_db),
+    user: models.User = Depends(require_admin)
+):
+    photo = db.query(models.VehiclePhoto).filter(
+        models.VehiclePhoto.id == photo_id,
+        models.VehiclePhoto.vehicle_id == vehicle_id
+    ).first()
+    if not photo:
+        raise HTTPException(status_code=404, detail='Photo not found')
+    
+    db.delete(photo)
+    db.commit()
+    return {'message': 'Photo deleted successfully'}
+
+
 @router.delete("/{vehicle_id}")
 def delete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).filter(models.Vehicle.id ==
                                         vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-    # soft-delete: mark deleted and keep records for audit
-    import datetime
+        raise HTTPException(status_code=404, detail='Vehicle not found')
     v.is_deleted = 1
     v.deleted_at = datetime.datetime.utcnow()
-    db.add(v)
     db.commit()
-    return {"ok": True}
+    return {'message': 'Vehicle soft-deleted'}
 
 
 @router.post("/{vehicle_id}/undelete", response_model=schemas.VehicleOut)
