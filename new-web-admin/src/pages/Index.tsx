@@ -116,7 +116,7 @@ const Index = () => {
             {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
           {isAuthenticated ? (
-            <Button variant="default" size="sm" onClick={() => navigate(user?.role === 'admin' ? '/admin' : '/inspector')}>
+            <Button variant="default" size="sm" onClick={() => navigate(user?.role === 'admin' || user?.role === 'super_admin' ? '/admin' : '/inspector')}>
               Dashboard
             </Button>
           ) : (
