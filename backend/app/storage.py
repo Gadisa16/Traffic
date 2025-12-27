@@ -20,6 +20,64 @@ def _supabase_public_base() -> str:
     return os.getenv('SUPABASE_PUBLIC_BASE_URL') or os.getenv('SUPABASE_URL', '').rstrip('/')
 
 
+def _supabase_url() -> str:
+    supabase_url = os.getenv('SUPABASE_URL', '').rstrip('/')
+    service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+    if not supabase_url or not service_key:
+        raise RuntimeError('Supabase env vars not configured (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)')
+    return supabase_url
+
+
+def _supabase_service_key() -> str:
+    service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
+    if not service_key:
+        raise RuntimeError('Supabase env vars not configured (SUPABASE_SERVICE_ROLE_KEY)')
+    return service_key
+
+
+def create_signed_url(*, bucket: str, path: str, expires_in: int = 60 * 60) -> str:
+    """Create a signed URL for a private bucket object.
+
+    Returns a full URL.
+    """
+
+    driver = _storage_driver()
+    if driver == 'memory':
+        return f"https://example.local/{bucket}/{path}?signed=1"
+
+    if driver != 'supabase':
+        raise RuntimeError(f"Unknown STORAGE_DRIVER={driver}")
+
+    supabase_url = _supabase_url()
+    service_key = _supabase_service_key()
+
+    try:
+        import httpx
+    except Exception as e:
+        raise RuntimeError('httpx is required for Supabase signed URLs') from e
+
+    sign_url = f"{supabase_url}/storage/v1/object/sign/{bucket}/{path}"
+    headers = {
+        'Authorization': f'Bearer {service_key}',
+        'apikey': service_key,
+        'Content-Type': 'application/json',
+    }
+
+    with httpx.Client(timeout=30.0) as client:
+        r = client.post(sign_url, json={'expiresIn': int(expires_in)}, headers=headers)
+        if r.status_code not in (200, 201):
+            raise RuntimeError(f"Supabase signed URL failed: {r.status_code} {r.text}")
+
+    data = r.json() if r.text else {}
+    signed_path = data.get('signedURL') or data.get('signedUrl')
+    if not signed_path:
+        raise RuntimeError(f"Supabase signed URL response missing signedURL: {data}")
+
+    if signed_path.startswith('http://') or signed_path.startswith('https://'):
+        return signed_path
+    return f"{supabase_url}{signed_path}"
+
+
 def upload_bytes(
     *,
     folder: str,
@@ -30,10 +88,9 @@ def upload_bytes(
 ) -> Tuple[str, str]:
     """Upload raw bytes to the configured storage backend.
 
-    Returns: (path, public_url)
+    Returns: (path, url)
 
-    For Supabase, this assumes the bucket is public (MVP). For private buckets, you would
-    generate signed URLs instead.
+    For Supabase, we return a signed URL (private buckets).
     """
 
     bucket = bucket or os.getenv('SUPABASE_STORAGE_BUCKET', 'traffic-files')
@@ -55,10 +112,8 @@ def upload_bytes(
     if driver != 'supabase':
         raise RuntimeError(f"Unknown STORAGE_DRIVER={driver}")
 
-    supabase_url = os.getenv('SUPABASE_URL', '').rstrip('/')
-    service_key = os.getenv('SUPABASE_SERVICE_ROLE_KEY')
-    if not supabase_url or not service_key:
-        raise RuntimeError('Supabase env vars not configured (SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)')
+    supabase_url = _supabase_url()
+    service_key = _supabase_service_key()
 
     try:
         import httpx
@@ -81,6 +136,5 @@ def upload_bytes(
         if r.status_code not in (200, 201):
             raise RuntimeError(f"Supabase upload failed: {r.status_code} {r.text}")
 
-    public_base = _supabase_public_base()
-    public_url = f"{public_base}/storage/v1/object/public/{bucket}/{path}"
-    return path, public_url
+    signed_url = create_signed_url(bucket=bucket, path=path, expires_in=int(os.getenv('SUPABASE_SIGNED_URL_TTL_SECONDS', '3600')))
+    return path, signed_url

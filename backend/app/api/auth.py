@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Depends, status, Body, Form, UploadFile, File
+from fastapi import APIRouter, HTTPException, Depends, status, Body, Form, UploadFile, File, Request
 import os
 from sqlalchemy.orm import Session
 from typing import Optional
@@ -22,10 +22,11 @@ class LoginBody(BaseModel):
 
 
 @router.post("/login", response_model=Token)
-def login(
+async def login(
     body: Optional[LoginBody] = Body(None),
     username: Optional[str] = Form(None),
     password: Optional[str] = Form(None),
+    request: Request = None,
     db: Session = Depends(get_db),
 ):
     u = None
@@ -36,6 +37,17 @@ def login(
     else:
         u = username
         p = password
+
+    if (not u or not p) and request is not None:
+        try:
+            ctype = (request.headers.get('content-type') or '').lower()
+            if 'application/json' in ctype:
+                data = await request.json()
+                if isinstance(data, dict):
+                    u = u or data.get('username')
+                    p = p or data.get('password')
+        except Exception:
+            pass
 
     if not u or not p:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST,
@@ -80,6 +92,12 @@ def register(
 
     if not username or not password:
         raise HTTPException(status_code=400, detail="Missing username or password")
+
+    if not email or not phone:
+        raise HTTPException(status_code=400, detail="Email and phone are required")
+
+    if len(password) < 8:
+        raise HTTPException(status_code=400, detail="Password too short")
 
     if role not in ('public', 'inspector', 'admin'):
         raise HTTPException(status_code=400, detail='Invalid role')
@@ -176,19 +194,19 @@ async def upload_verification_document(
     db: Session = Depends(get_db),
     current_user: models.User = Depends(get_current_user),
 ):
-    if current_user.role not in ('inspector', 'admin'):
+    if current_user.role not in ('inspector', 'admin', 'super_admin'):
         raise HTTPException(status_code=403, detail='Forbidden')
 
     content = await file.read()
     content_type = file.content_type or 'application/octet-stream'
     filename = file.filename
-    bucket = os.getenv('SUPABASE_STORAGE_BUCKET', 'traffic-files')
+    bucket = 'inspector-docs'
     path, url = upload_bytes(
-        folder=f"verification/{current_user.id}",
+        bucket=bucket,
+        folder=f"user-{current_user.id}",
         filename=filename,
         content=content,
         content_type=content_type,
-        bucket=bucket,
     )
 
     doc = models.UserDocument(

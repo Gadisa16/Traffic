@@ -92,9 +92,15 @@ export async function login(username: string, password: string) {
   }
 }
 
-export async function register(username: string, password: string, role: string = 'admin') {
+export async function register(
+  username: string,
+  password: string,
+  email: string,
+  phone: string,
+  role: string = 'inspector',
+) {
   try {
-    const res = await client.post('/auth/register', { username, password, role })
+    const res = await client.post('/auth/register', { username, password, email, phone, role })
     const data = res.data
     const auth = {
       token: data.access_token ?? data.token ?? data.accessToken ?? data.auth?.token,

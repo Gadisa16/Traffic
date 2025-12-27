@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Body, Request
 from sqlalchemy.orm import Session
 from typing import Optional
 import json
@@ -41,10 +41,23 @@ async def create_inspection(
     note: Optional[str] = Form(None),
     extra_payload: Optional[str] = Form(None, alias="payload"),
     photo: Optional[UploadFile] = File(None),
+    request: Request = None,
     db: Session = Depends(get_db),
     user: models.User = Depends(require_any_role("admin", "inspector")),
 ):
     raw_extra = None
+
+    # If this request is JSON, FastAPI won't populate Body(...) because we also have Form/File params.
+    # Detect JSON and parse manually.
+    if payload is None and not code:
+        try:
+            ctype = (request.headers.get('content-type') if request else '') or ''
+            if 'application/json' in ctype:
+                data = await request.json()
+                payload = schemas.InspectionCreate(**(data or {}))
+        except Exception:
+            payload = None
+
     if payload is not None:
         code = payload.code
         action = payload.action
@@ -76,7 +89,8 @@ async def create_inspection(
         content_type = photo.content_type or 'application/octet-stream'
         filename = photo.filename
         _, photo_url = upload_bytes(
-            folder=f"inspections/{v.id}",
+            bucket='vehicle-photos',
+            folder=f"vehicle-{v.id}/inspections",
             filename=filename,
             content=content,
             content_type=content_type,

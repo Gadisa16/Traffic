@@ -24,7 +24,12 @@
       "name": "List Vehicles",
       "request": {
         "method": "GET",
-        "header": [],
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
+          }
+        ],
         "url": {
           "raw": "http://127.0.0.1:8000/vehicles/",
           "host": [
@@ -45,6 +50,10 @@
           {
             "key": "Content-Type",
             "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Bearer {{token}}"
           }
         ],
         "body": {
@@ -122,15 +131,10 @@
       }
     },
     {
-      "name": "Verify Vehicle (inspector)",
+      "name": "Verify Vehicle (public-safe)",
       "request": {
         "method": "GET",
-        "header": [
-          {
-            "key": "Authorization",
-            "value": "Bearer {{token}}"
-          }
-        ],
+        "header": [],
         "url": {
           "raw": "http://127.0.0.1:8000/vehicles/verify?code={{code}}",
           "host": [

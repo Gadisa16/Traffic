@@ -19,12 +19,12 @@ def setup_module(module):
     db = SessionLocal()
     if not db.query(models.User).filter(models.User.username == 'admin').first():
         admin = models.User(
-            username='admin', hashed_password=get_password_hash('secret'), role='admin')
+            username='admin', hashed_password=get_password_hash('secret'), role='admin', status='active')
         db.add(admin)
         db.commit()
     if not db.query(models.User).filter(models.User.username == 'insp').first():
         insp = models.User(
-            username='insp', hashed_password=get_password_hash('secret'), role='inspector')
+            username='insp', hashed_password=get_password_hash('secret'), role='inspector', status='active')
         db.add(insp)
         db.commit()
 

@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
+import { CameraView, useCameraPermissions } from 'expo-camera'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { RootStackParamList } from '../App'
 import Button from '../components/Button'
@@ -20,36 +21,24 @@ type Props = NativeStackScreenProps<RootStackParamList, 'Scanner'>
 export default function ScannerScreen({ navigation }: Props) {
   const { theme, isDark } = useTheme()
   const insets = useSafeAreaInsets()
-  
-  const [hasPermission, setHasPermission] = useState<boolean | null>(null)
+
+  const [permission, requestPermission] = useCameraPermissions()
   const [scanning, setScanning] = useState(true)
-  const [BarCodeScannerComp, setBarCodeScannerComp] = useState<any | null>(null)
   const [showManualEntry, setShowManualEntry] = useState(false)
   const [manualCode, setManualCode] = useState('')
   const lastScannedRef = useRef<number | null>(null)
-  const scannerModuleRef = useRef<any>(null)
 
   useEffect(() => {
-    (async () => {
-      if (Platform.OS === 'web') {
-        setHasPermission(false)
-        return
-      }
-      try {
-        const mod = await import('expo-barcode-scanner')
-        scannerModuleRef.current = mod
-        setBarCodeScannerComp(() => mod.BarCodeScanner)
-        if (mod && mod.requestPermissionsAsync) {
-          const { status } = await mod.requestPermissionsAsync()
-          setHasPermission(status === 'granted')
-        } else {
-          setHasPermission(false)
-        }
-      } catch (err) {
-        setHasPermission(false)
-      }
-    })()
-  }, [])
+    if (Platform.OS === 'web') {
+      return
+    }
+    if (!permission) {
+      return
+    }
+    if (!permission.granted && permission.canAskAgain) {
+      requestPermission()
+    }
+  }, [permission, requestPermission])
 
   const handleBarCodeScanned = ({ data }: { data: string }) => {
     const now = Date.now()
@@ -75,17 +64,23 @@ export default function ScannerScreen({ navigation }: Props) {
     navigation.navigate('Verify', { code })
   }
 
-  const requestPermission = async () => {
-    if (scannerModuleRef.current && scannerModuleRef.current.requestPermissionsAsync) {
-      const r = await scannerModuleRef.current.requestPermissionsAsync()
-      setHasPermission(r.status === 'granted')
-    } else {
-      setHasPermission(false)
-    }
+  // Permission states
+  if (Platform.OS === 'web') {
+    return (
+      <View style={[styles.container, styles.center, { backgroundColor: theme.background, paddingTop: insets.top }]}>
+        <Text style={[styles.permissionTitle, { color: theme.text }]}>Scanner not available on web</Text>
+        <Text style={[styles.permissionText, { color: theme.textSecondary }]}>Use manual entry instead.</Text>
+        <Button
+          title="Enter Code Manually"
+          onPress={() => setShowManualEntry(true)}
+          size="large"
+          style={{ marginTop: 24, width: '100%' }}
+        />
+      </View>
+    )
   }
 
-  // Permission states
-  if (hasPermission === null) {
+  if (!permission) {
     return (
       <View style={[styles.container, styles.center, { backgroundColor: theme.background }]}>
         <Text style={[styles.loadingText, { color: theme.textSecondary }]}>
@@ -95,7 +90,7 @@ export default function ScannerScreen({ navigation }: Props) {
     )
   }
 
-  if (hasPermission === false) {
+  if (!permission.granted) {
     return (
       <View
         style={[
@@ -114,7 +109,7 @@ export default function ScannerScreen({ navigation }: Props) {
           </Text>
           <Button
             title="Grant Permission"
-            onPress={requestPermission}
+            onPress={() => requestPermission()}
             size="large"
             style={{ marginTop: 24, width: '100%' }}
           />
@@ -152,19 +147,11 @@ export default function ScannerScreen({ navigation }: Props) {
       {/* Scanner View */}
       <View style={styles.scannerWrapper}>
         <View style={[styles.scannerContainer, { borderColor: theme.border }]}>
-          {BarCodeScannerComp ? (
-            <BarCodeScannerComp
-              onBarCodeScanned={scanning ? handleBarCodeScanned : undefined}
-              style={StyleSheet.absoluteFillObject}
-              accessibilityLabel="Camera scanner"
-            />
-          ) : (
-            <View style={[StyleSheet.absoluteFillObject, styles.noCamera]}>
-              <Text style={{ color: '#fff', textAlign: 'center' }}>
-                Camera not available in this runtime
-              </Text>
-            </View>
-          )}
+          <CameraView
+            onBarcodeScanned={scanning ? handleBarCodeScanned : undefined}
+            style={StyleSheet.absoluteFillObject}
+            accessibilityLabel="Camera scanner"
+          />
           
           {/* Scan Frame Overlay */}
           <View style={styles.scanFrameOverlay}>

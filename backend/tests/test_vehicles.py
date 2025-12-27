@@ -95,14 +95,11 @@ def test_create_and_list_vehicle():
     assert isinstance(qr['qr_value'], str) and len(qr['qr_value']) > 0
     assert isinstance(qr['qr_png_url'], str) and len(qr['qr_png_url']) > 0
 
-    # inspector can verify by qr_value
-    insp_login = client.post('/auth/login', data={'username': 'insp', 'password': 'secret'})
-    assert insp_login.status_code == 200
-    insp_token = insp_login.json()['access_token']
-    insp_headers = {'Authorization': f'Bearer {insp_token}'}
-    r4 = client.get(f"/vehicles/verify?code={qr['qr_value']}", headers=insp_headers)
+    # verify is public-safe (anonymous)
+    r4 = client.get(f"/vehicles/verify?code={qr['qr_value']}")
     if r4.status_code != 200:
         print('GET /vehicles/verify error:', r4.status_code, r4.text)
     assert r4.status_code == 200
     v = r4.json()
     assert v['plate_number'] == plate
+    assert v.get('owner') in (None, {})

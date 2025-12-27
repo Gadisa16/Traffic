@@ -37,7 +37,7 @@
       ]
     },
     "plugins": [
-      "expo-barcode-scanner",
+      "expo-camera",
       "expo-image-picker",
       "expo-secure-store"
     ]

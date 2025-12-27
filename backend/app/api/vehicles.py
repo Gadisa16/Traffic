@@ -1,5 +1,4 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import FileResponse
 from fastapi import UploadFile, File, Form
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
@@ -7,7 +6,7 @@ from typing import Optional
 from .. import models, schemas
 from ..db import get_db
 import hashlib
-from .deps import get_current_user, require_role, require_any_role
+from .deps import get_current_user, require_role, require_any_role, get_current_user_optional
 from datetime import date, timedelta
 import os
 import uuid
@@ -47,7 +46,7 @@ def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
 def verify_vehicle(
     code: str = Query(..., description="QR value, plate number, or side number"),
     db: Session = Depends(get_db),
-    user: models.User = Depends(require_any_role('admin', 'super_admin', 'inspector', 'public')),
+    user: Optional[models.User] = Depends(get_current_user_optional),
 ):
     v = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(models.Vehicle.license)).filter(
         models.Vehicle.is_deleted == 0,
@@ -60,8 +59,12 @@ def verify_vehicle(
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
+    effective_role = 'public'
+    if user is not None and getattr(user, 'status', 'active') == 'active':
+        effective_role = user.role
+
     owner = None
-    if v.owner and user.role != 'public':
+    if v.owner and effective_role != 'public':
         owner = {
             "name": v.owner.full_name,
             "mask_phone": _mask_phone(v.owner.phone),
@@ -107,9 +110,10 @@ def generate_vehicle_qr(
     img = qrcode.make(v.qr_value)
     buf = io.BytesIO()
     img.save(buf, format='PNG')
-    _, public_url = upload_bytes(
-        folder='qr',
-        filename=f"{v.qr_value}.png",
+    _, signed_url = upload_bytes(
+        bucket='qr-codes',
+        folder='',
+        filename=f"vehicle-{v.id}.png",
         content=buf.getvalue(),
         content_type='image/png',
     )
@@ -117,7 +121,7 @@ def generate_vehicle_qr(
     return {
         "vehicle_id": v.id,
         "qr_value": v.qr_value,
-        "qr_png_url": public_url,
+        "qr_png_url": signed_url,
     }
 
 
@@ -139,14 +143,15 @@ def upload_vehicle_photos(
         content_type = f.content_type or 'application/octet-stream'
         filename = f.filename or f"{uuid.uuid4().hex}"
         path, url = upload_bytes(
-            folder=f"vehicles/{vehicle_id}",
+            bucket='vehicle-photos',
+            folder=f"vehicle-{vehicle_id}",
             filename=filename,
             content=content,
             content_type=content_type,
         )
         photo = models.VehiclePhoto(
             vehicle_id=vehicle_id,
-            file_bucket=os.getenv('SUPABASE_STORAGE_BUCKET', 'traffic-files'),
+            file_bucket='vehicle-photos',
             file_path=path,
             file_url=url,
             kind=kind,
@@ -168,7 +173,7 @@ def list_vehicles(
     side: Optional[str] = Query(
         None, description="Filter by exact side number"),
     db: Session = Depends(get_db),
-    current_user: models.User = Depends(get_current_user),
+    current_user: models.User = Depends(require_admin),
 ):
     """List vehicles. Optional query params:
     - `plate`: substring match (case-insensitive)
@@ -191,7 +196,7 @@ def list_vehicles(
 
 
 @router.get("/{vehicle_id}", response_model=schemas.VehicleOut)
-def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).options(
         joinedload(models.Vehicle.owner),
         joinedload(models.Vehicle.license),
@@ -203,7 +208,7 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: mo
 
 
 @router.get("/by_plate/{plate}", response_model=schemas.VehicleOut)
-def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).options(
         joinedload(models.Vehicle.owner),
         joinedload(models.Vehicle.license),
@@ -215,7 +220,7 @@ def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models
 
 
 @router.get("/by_qr/{qr}", response_model=schemas.VehicleOut)
-def get_by_qr(qr: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_by_qr(qr: str, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).options(
         joinedload(models.Vehicle.owner),
         joinedload(models.Vehicle.license),
@@ -227,7 +232,7 @@ def get_by_qr(qr: str, db: Session = Depends(get_db), current_user: models.User 
 
 
 @router.get("/by_side/{side}", response_model=schemas.VehicleOut)
-def get_by_side(side: str, db: Session = Depends(get_db), current_user: models.User = Depends(get_current_user)):
+def get_by_side(side: str, db: Session = Depends(get_db), current_user: models.User = Depends(require_admin)):
     v = db.query(models.Vehicle).options(
         joinedload(models.Vehicle.owner),
         joinedload(models.Vehicle.license),

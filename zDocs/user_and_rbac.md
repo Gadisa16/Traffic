@@ -8,6 +8,7 @@ All newly registered users are treated as **restricted users** until explicitly 
 ---
 
 ## 1️⃣ Admin Registration Control (Web Admin)
+-  I want web-admin to have its own registration flow separate from mobile app (inspector app) registration flow. So only web-admin page should have admin registration flow and mobile app (inspector app) should not have admin registration flow. I want to have an environment variable called `ALLOW_REGISTRATION` which can be set to true or false. If it is set to false no new admin accounts can self-register on web-admin page, only invitation or super-admin created accounts are allowed. If it is set to true admins may register but with restricted access. Newly registered admins are not treated as admins and have no write or management permissions they can only view basic non-sensitive information. Only a super admin or existing verified admin can approve the account, assign the admin role and activate full permissions. For long-term safety I recommend switching admin creation to invitation-only once the system is live. Self-registration for admins should be temporary and disabled after initial setup.
 
 ### Registration Gate
 
@@ -67,6 +68,7 @@ Registration must collect:
 
 ---
 
+
 ## 3️⃣ Separate Registration Paths by Platform & Role
 
 ### Mobile App Registration (Inspector & Public Users)
@@ -77,10 +79,11 @@ Registration must collect:
 
   * Email or phone number
   * Strong password
-* During registration, user selects:
-
+* During registration, user must selects:
   * **Ordinary User**
   * **Inspector**
+  so for this I want two radio buttons on registration screen so that user on mobile-inspectors app can select his role, if he selects ordinary user he will have limited access as public user, if he selects inspector there will be a next fields to fill-out to register this user as inspector like Official ID/badge, employment letter from the authority (e.g., police department). I don't want users to simply get regsitered as inspector without verification. I don'w want to consider this user as inspector if he just selects inspector role on registration screen without submitting required documents for verification. So I want to have a separate flow for inspector registration after he selects inspector role on registration screen. If he provides required documents for verification his status will be pending verification until admin approves his account. If he selects ordinary user role on registration screen he will be registered as ordinary user with limited access to public vehicle info only.
+  I don't want user users rgistered on mobile expo (inspector app) to have admin access to web admin panel weather they are registered for first time or not they will always be ordinary user or inspector if registered. Only verified admins who registered through web-admin page app should have access to web admin panel and that is even when verified by super-admin or existing verified admin. 
 
 ---
 
@@ -113,7 +116,7 @@ This allows:
 
 #### Step 1: Restricted Access (Default)
 
-* Inspector registers like any user
+* Inspector registers like any ordinary user
 * Initially has **ordinary user permissions**
 * Cannot perform inspections or access protected data
 
@@ -343,3 +346,265 @@ QR image is generated server-side and stored in:
 * ✅ Verified inspector → scan + history
 * ✅ Admin verified → full access
 * Ordinary users → public-safe fields only
+
+Soft delete everywhere
+Vehicles, users, docs → never hard delete by default.
+
+
+
+
+## Overall Product Behavior (Option A – Public First)
+
+Both **mobile-inspector** and **web-admin** are **public-first applications**.
+
+No user should be forced to log in or register just to:
+
+* open the app
+* view general information
+* scan a vehicle QR code
+* verify a vehicle’s basic status
+
+Authentication exists only when a user wants **more privileges**, not for basic usage.
+
+---
+
+## 1️⃣ First Experience (No Login Required)
+
+### Entry Point for Everyone
+
+When a user opens either:
+
+* the **mobile app**, or
+* the **web app**
+
+they land on a **public landing/dashboard**, not a login screen.
+
+### Public Landing Page Shows
+
+Safe, non-sensitive, read-only information such as:
+
+* Total registered vehicles
+* Vehicles with:
+
+  * valid licenses
+  * expiring licenses
+  * expired licenses
+* A clear **“Verify a Vehicle”** entry point
+
+No owner names, phone numbers, IDs, or documents are visible.
+
+This immediately establishes:
+
+* trust
+* transparency
+* ease of use
+* public-service mindset
+
+---
+
+## 2️⃣ Public Vehicle Verification (No Auth)
+
+### Mobile App
+
+Any user can:
+
+* open the scanner
+* scan a QR code
+* or manually enter plate / side number
+
+### Web App
+
+Any user can:
+
+* search by plate number or side number
+* view a simple verification result
+
+### Public Verification Result Shows Only:
+
+* Side Number (የጉን ቁጥር)
+* Plate number
+* Vehicle status (Active / Expired / Suspended)
+* License expiry date (date only)
+* Simple warning flags if applicable
+
+### Explicitly NOT Shown:
+
+* Owner name
+* Phone number
+* Address
+* Uploaded documents
+* Inspection history
+* Internal notes
+
+This makes QR codes usable by:
+
+* police
+* passengers
+* dispatchers
+* the general public
+
+without weakening security.
+
+---
+
+## 3️⃣ Mobile App: Registration Paths (Optional, Role-Based)
+
+Registration is **optional**, not mandatory.
+
+### Registration Screen (Mobile Only)
+
+Users see two radio options:
+
+* **Ordinary User**
+* **Inspector**
+
+#### Ordinary User Flow
+
+* Registers with:
+
+  * email or phone
+  * password
+* Account is immediately active
+* Access remains **public-level only**
+* They can:
+
+  * scan vehicles
+  * verify basic status
+* They cannot:
+
+  * see sensitive data
+  * submit inspections
+  * upload evidence
+
+This is essentially a “signed public user.”
+
+---
+
+### Inspector Flow (Gated & Verified)
+
+Selecting **Inspector** does **not** grant inspector access.
+
+Instead, it triggers a **second verification step**.
+
+#### Inspector Registration Steps
+
+1. Basic registration (same as ordinary user)
+2. Inspector verification screen appears:
+
+   * Upload official ID / badge
+   * Upload employment letter or authority document
+   * Optional reference code
+3. Submit for review
+
+#### Inspector Account State
+
+* Status: **Pending Verification**
+* Until approved:
+
+  * behaves exactly like an ordinary user
+  * no inspection privileges
+  * no sensitive data access
+
+#### After Admin Approval
+
+* Role is upgraded to **Inspector**
+* Gains access to:
+
+  * inspection submission
+  * photo uploads
+  * inspector-level vehicle data
+
+This prevents fake inspectors and keeps authority control intact.
+
+---
+
+## 4️⃣ Web Admin: Controlled Registration Model
+
+### Public Web Landing
+
+The web app also has a **public landing page**:
+
+* same verification capabilities as mobile
+* same public data rules
+* no admin features exposed
+
+---
+
+### Admin Registration Gate
+
+Admin access is **never public by default**.
+
+An environment flag controls admin registration:
+
+```
+ALLOW_REGISTRATION=true | false
+```
+
+#### When `ALLOW_REGISTRATION = false`
+
+* No self-registration allowed
+* Only:
+
+  * super admin
+  * or existing verified admin
+    can create new admin accounts (invitation or manual)
+
+This is the recommended production mode.
+
+---
+
+#### When `ALLOW_REGISTRATION = true`
+
+* Admins can register themselves
+* BUT:
+
+##### Newly Registered Admins:
+
+* Are **not treated as admins**
+* Have:
+
+  * no write permissions
+  * no approval rights
+  * no access to sensitive data
+* Can only view:
+
+  * basic dashboards
+  * public-level vehicle info
+
+##### Activation Requires:
+
+* Approval by:
+
+  * super admin
+  * or verified admin
+* Explicit role assignment
+
+Until approved, they are effectively **read-only users**.
+
+---
+
+## 5️⃣ Mental Model (Very Important)
+
+Think of the system as **three concentric circles**:
+
+### Public (No Auth)
+
+* Vehicle verification
+* Public stats
+* Transparency
+
+### Registered Users
+
+* Ordinary users
+* Pending inspectors
+* Slightly enhanced UX
+* Still no sensitive data
+
+### Privileged Roles
+
+* Inspectors (verified)
+* Admins (approved)
+* Full operational access
+
+No one jumps directly to the inner circle.
+Everyone starts public, then optionally registers, then must be verified/approved for more access.

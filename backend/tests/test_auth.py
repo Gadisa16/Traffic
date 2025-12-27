@@ -59,3 +59,24 @@ def test_me_invalid_token():
     headers = {'Authorization': 'Bearer bad.token.here'}
     r = client.get('/auth/me', headers=headers)
     assert r.status_code == 401
+
+
+def test_register_and_verify_otp_public_user():
+    # register a public user
+    r = client.post('/auth/register', json={
+        'username': 'u1',
+        'password': 'password123',
+        'role': 'public',
+        'email': 'u1@example.com',
+        'phone': '+251900000001',
+    })
+    assert r.status_code == 200
+    token = r.json()['access_token']
+    headers = {'Authorization': f'Bearer {token}'}
+
+    # verify OTP (dev stub)
+    v = client.post('/auth/verify-otp', json={'otp': os.getenv('DEV_OTP_CODE', '123456'), 'method': 'phone'}, headers=headers)
+    assert v.status_code == 200
+    me = v.json()
+    assert me['username'] == 'u1'
+    assert me['status'] == 'active'

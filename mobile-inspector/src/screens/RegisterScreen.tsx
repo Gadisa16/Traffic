@@ -29,9 +29,13 @@ export default function RegisterScreen({ navigation }: Props) {
 
     const [loading, setLoading] = useState(false)
     const [username, setUsername] = useState('')
+    const [email, setEmail] = useState('')
+    const [phone, setPhone] = useState('')
     const [password, setPassword] = useState('')
-    const [errors, setErrors] = useState<{ username?: string; password?: string }>({})
+    const [errors, setErrors] = useState<{ username?: string; email?: string; phone?: string; password?: string }>({})
 
+    const emailRef = useRef<RNTextInput>(null)
+    const phoneRef = useRef<RNTextInput>(null)
     const passwordRef = useRef<RNTextInput>(null)
 
     const validate = () => {
@@ -39,10 +43,20 @@ export default function RegisterScreen({ navigation }: Props) {
         if (!username.trim()) {
             newErrors.username = 'Username is required'
         }
+        if (!email.trim()) {
+            newErrors.email = 'Email is required'
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+            newErrors.email = 'Enter a valid email'
+        }
+        if (!phone.trim()) {
+            newErrors.phone = 'Phone is required'
+        } else if (phone.trim().length < 7) {
+            newErrors.phone = 'Enter a valid phone'
+        }
         if (!password) {
             newErrors.password = 'Password is required'
-        } else if (password.length < 4) {
-            newErrors.password = 'Password must be at least 4 characters'
+        } else if (password.length < 8) {
+            newErrors.password = 'Password must be at least 8 characters'
         }
         setErrors(newErrors)
         return Object.keys(newErrors).length === 0
@@ -54,7 +68,7 @@ export default function RegisterScreen({ navigation }: Props) {
 
         setLoading(true)
         try {
-            const auth = await Api.register(username.trim(), password)
+            const auth = await Api.register(username.trim(), password, email.trim(), phone.trim(), 'inspector')
             if (!auth?.token) throw new Error('Registration failed')
             navigation.replace('Scanner')
         } catch (err: any) {
@@ -102,8 +116,46 @@ export default function RegisterScreen({ navigation }: Props) {
                             autoComplete="username"
                             autoCorrect={false}
                             returnKeyType="next"
-                            onSubmitEditing={() => passwordRef.current?.focus()}
+                            onSubmitEditing={() => emailRef.current?.focus()}
                             accessibilityLabel="Username input"
+                        />
+
+                        <TextInput
+                            ref={emailRef}
+                            label="Email"
+                            placeholder="you@example.com"
+                            value={email}
+                            onChangeText={(text) => {
+                                setEmail(text)
+                                if (errors.email) setErrors({ ...errors, email: undefined })
+                            }}
+                            error={errors.email}
+                            autoCapitalize="none"
+                            autoComplete="email"
+                            keyboardType="email-address"
+                            autoCorrect={false}
+                            returnKeyType="next"
+                            onSubmitEditing={() => phoneRef.current?.focus()}
+                            accessibilityLabel="Email input"
+                        />
+
+                        <TextInput
+                            ref={phoneRef}
+                            label="Phone"
+                            placeholder="+251..."
+                            value={phone}
+                            onChangeText={(text) => {
+                                setPhone(text)
+                                if (errors.phone) setErrors({ ...errors, phone: undefined })
+                            }}
+                            error={errors.phone}
+                            autoCapitalize="none"
+                            autoComplete="tel"
+                            keyboardType="phone-pad"
+                            autoCorrect={false}
+                            returnKeyType="next"
+                            onSubmitEditing={() => passwordRef.current?.focus()}
+                            accessibilityLabel="Phone input"
                         />
 
                         <TextInput
