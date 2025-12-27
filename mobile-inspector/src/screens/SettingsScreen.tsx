@@ -3,29 +3,27 @@ import NetInfo from '@react-native-community/netinfo'
 import { NativeStackScreenProps } from '@react-navigation/native-stack'
 import { useEffect, useState } from 'react'
 import {
-  ActivityIndicator,
   Alert,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TouchableOpacity,
-  View,
+  View
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { RootStackParamList } from '../App'
 import Button from '../components/Button'
 import Card from '../components/Card'
 import { useTheme } from '../context/ThemeContext'
 import * as Offline from '../lib/offline'
 import * as Storage from '../lib/storage'
-import { RootStackParamList } from '../App'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Settings'>
 
 export default function SettingsScreen({ navigation }: Props) {
   const { theme, isDark, themePreference, setThemePreference } = useTheme()
   const insets = useSafeAreaInsets()
-  
+
   const [isConnected, setIsConnected] = useState<boolean | null>(null)
   const [queueCount, setQueueCount] = useState(0)
   const [syncing, setSyncing] = useState(false)
@@ -110,7 +108,7 @@ export default function SettingsScreen({ navigation }: Props) {
           style: 'destructive',
           onPress: async () => {
             await Storage.clearToken()
-            navigation.reset({ index: 0, routes: [{ name: 'Login' }] })
+            navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
           },
         },
       ]

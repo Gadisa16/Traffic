@@ -80,6 +80,41 @@ def verify_vehicle(
     }
 
 
+@router.get('/stats/summary')
+def stats_summary(db: Session = Depends(get_db)):
+    today = date.today()
+    soon = today + timedelta(days=30)
+
+    vehicles = db.query(models.Vehicle).options(joinedload(models.Vehicle.license)).filter(models.Vehicle.is_deleted == 0).all()
+
+    total = 0
+    valid = 0
+    expired = 0
+    expiring = 0
+    unknown = 0
+
+    for v in vehicles:
+        total += 1
+        if not v.license or not v.license.expiry_date:
+            unknown += 1
+            continue
+        exp = v.license.expiry_date
+        if exp < today:
+            expired += 1
+        elif exp <= soon:
+            expiring += 1
+        else:
+            valid += 1
+
+    return {
+        'total_vehicles': total,
+        'valid_license': valid,
+        'expired_license': expired,
+        'expiring_soon_license': expiring,
+        'unknown_license': unknown,
+    }
+
+
 @router.get("/qr/{qr_value}.png")
 def get_qr_png(qr_value: str):
     # Legacy endpoint: QR images are now stored in external storage.

@@ -41,6 +41,43 @@ export async function verifyVehicle(code: string) {
   }
 }
 
+export async function getVehicleStats() {
+  try {
+    const res = await client.get('/vehicles/stats/summary')
+    return res.data
+  } catch (err: any) {
+    throw err
+  }
+}
+
+export async function me() {
+  try {
+    const res = await client.get('/auth/me')
+    return res.data
+  } catch (err: any) {
+    throw err
+  }
+}
+
+export async function uploadVerificationDocument(docType: string, fileUri: string) {
+  try {
+    const form = new FormData()
+    form.append('doc_type', docType)
+
+    const name = fileUri.split('/').pop() || `${docType}.jpg`
+    const type = 'image/jpeg'
+    // @ts-ignore
+    form.append('file', { uri: fileUri, name, type })
+
+    const res = await client.post('/auth/verification/documents', form as any, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return res.data
+  } catch (err: any) {
+    throw err
+  }
+}
+
 export async function recordScan(code: string, payload: any = {}) {
   // If a photo is included, upload as multipart/form-data
   try {

@@ -32,6 +32,7 @@ export default function RegisterScreen({ navigation }: Props) {
     const [email, setEmail] = useState('')
     const [phone, setPhone] = useState('')
     const [password, setPassword] = useState('')
+    const [role, setRole] = useState<'public' | 'inspector'>('public')
     const [errors, setErrors] = useState<{ username?: string; email?: string; phone?: string; password?: string }>({})
 
     const emailRef = useRef<RNTextInput>(null)
@@ -68,9 +69,9 @@ export default function RegisterScreen({ navigation }: Props) {
 
         setLoading(true)
         try {
-            const auth = await Api.register(username.trim(), password, email.trim(), phone.trim(), 'inspector')
+            const auth = await Api.register(username.trim(), password, email.trim(), phone.trim(), role)
             if (!auth?.token) throw new Error('Registration failed')
-            navigation.replace('Scanner')
+            navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
         } catch (err: any) {
             Alert.alert('Sign Up Failed', getUserMessage(err))
         } finally {
@@ -175,6 +176,25 @@ export default function RegisterScreen({ navigation }: Props) {
                             accessibilityLabel="Password input"
                         />
 
+                        <View style={styles.roleRow}>
+                            <TouchableOpacity
+                                onPress={() => setRole('public')}
+                                style={[styles.rolePill, styles.rolePillLeft, { backgroundColor: role === 'public' ? theme.accent : theme.surface }]}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected: role === 'public' }}
+                            >
+                                <Text style={[styles.roleText, { color: role === 'public' ? '#ffffff' : theme.text }]}>Public</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                onPress={() => setRole('inspector')}
+                                style={[styles.rolePill, { backgroundColor: role === 'inspector' ? theme.accent : theme.surface }]}
+                                accessibilityRole="radio"
+                                accessibilityState={{ selected: role === 'inspector' }}
+                            >
+                                <Text style={[styles.roleText, { color: role === 'inspector' ? '#ffffff' : theme.text }]}>Inspector</Text>
+                            </TouchableOpacity>
+                        </View>
+
                         <Button
                             title={loading ? 'Creating...' : 'Create Account'}
                             onPress={submit}
@@ -234,6 +254,23 @@ const styles = StyleSheet.create({
     },
     formContainer: {
         flex: 1,
+    },
+    roleRow: {
+        flexDirection: 'row',
+        marginBottom: 16,
+    },
+    rolePill: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 12,
+        alignItems: 'center',
+    },
+    rolePillLeft: {
+        marginRight: 8,
+    },
+    roleText: {
+        fontSize: 14,
+        fontWeight: '700',
     },
     formTitle: {
         fontSize: 20,

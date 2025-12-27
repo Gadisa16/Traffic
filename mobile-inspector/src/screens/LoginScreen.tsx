@@ -62,7 +62,7 @@ export default function LoginScreen({ navigation }: Props) {
         refreshToken: (auth as any).refreshToken,
         expiresAt: (auth as any).expiresAt,
       })
-      navigation.replace('Scanner')
+      navigation.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
     } catch (err: any) {
       Alert.alert('Sign In Failed', getUserMessage(err))
     } finally {

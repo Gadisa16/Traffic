@@ -67,6 +67,11 @@ async def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@router.get("/me", response_model=UserOut)
+def me(current_user: models.User = Depends(get_current_user)):
+    return current_user
+
+
 @router.post("/refresh", response_model=Token)
 def refresh_token(current_user: models.User = Depends(get_current_user)):
     # issue a fresh access token for an authenticated user
@@ -99,7 +104,7 @@ def register(
     if len(password) < 8:
         raise HTTPException(status_code=400, detail="Password too short")
 
-    if role not in ('public', 'inspector', 'admin'):
+    if role not in ('public', 'inspector'):
         raise HTTPException(status_code=400, detail='Invalid role')
 
     allow = os.getenv("ALLOW_REGISTRATION", "false").lower() == "true"

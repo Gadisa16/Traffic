@@ -65,10 +65,12 @@ export interface ApiError {
 
 // Navigation types
 export type RootStackParamList = {
+  Dashboard: undefined
   Login: undefined
   Register: undefined
   Scanner: undefined
   Verify: { code: string; fromRecent?: boolean }
   Recent: undefined
   Settings: undefined
+  InspectorVerification: undefined
 }

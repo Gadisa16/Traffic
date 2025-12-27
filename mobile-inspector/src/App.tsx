@@ -1,5 +1,5 @@
 import NetInfo from '@react-native-community/netinfo'
-import { NavigationContainer, createNavigationContainerRef, DefaultTheme, DarkTheme } from '@react-navigation/native'
+import { createNavigationContainerRef, DarkTheme, DefaultTheme, NavigationContainer } from '@react-navigation/native'
 import { createNativeStackNavigator } from '@react-navigation/native-stack'
 import { useEffect, useState } from 'react'
 import { Alert, AppState, AppStateStatus, StatusBar } from 'react-native'
@@ -8,26 +8,22 @@ import { ThemeProvider, useTheme } from './context/ThemeContext'
 import * as Api from './lib/api'
 import * as Offline from './lib/offline'
 import * as Storage from './lib/storage'
+import DashboardScreen from './screens/DashboardScreen'
+import InspectorVerificationScreen from './screens/InspectorVerificationScreen'
 import LoginScreen from './screens/LoginScreen'
-import RegisterScreen from './screens/RegisterScreen'
 import RecentScansScreen from './screens/RecentScansScreen'
+import RegisterScreen from './screens/RegisterScreen'
 import ScannerScreen from './screens/ScannerScreen'
 import SettingsScreen from './screens/SettingsScreen'
 import VerifyScreen from './screens/VerifyScreen'
 
-export type RootStackParamList = {
-  Login: undefined
-  Register: undefined
-  Scanner: undefined
-  Verify: { code: string; fromRecent?: boolean }
-  Recent: undefined
-  Settings: undefined
-}
+import type { RootStackParamList as RootStackParamListBase } from './types'
+
+export type RootStackParamList = RootStackParamListBase
 
 const Stack = createNativeStackNavigator<RootStackParamList>()
 
 function AppNavigator() {
-  const [initialRoute, setInitialRoute] = useState<'Login' | 'Scanner'>('Login')
   const [isReady, setIsReady] = useState(false)
   const { theme, isDark } = useTheme()
 
@@ -48,27 +44,23 @@ function AppNavigator() {
   }
 
   useEffect(() => {
-    ;(async () => {
-      try {
-        const t = await Storage.getToken()
-        if (t) setInitialRoute('Scanner')
-      } catch (e) { /* ignore */ }
+    ; (async () => {
       setIsReady(true)
     })()
 
     // register session-expired handler
     Api.setOnSessionExpired(async () => {
-      try { await Storage.clearToken() } catch (e) {}
+      try { await Storage.clearToken() } catch (e) { }
       try {
         Alert.alert('Session expired', 'Please sign in again')
-      } catch (e) {}
+      } catch (e) { }
       if (navigationRef.isReady()) {
-        navigationRef.reset({ index: 0, routes: [{ name: 'Login' }] })
+        navigationRef.reset({ index: 0, routes: [{ name: 'Dashboard' }] })
       }
     })
 
-    // initial sync when app opens
-    ;(async () => { try { await Offline.syncQueue() } catch (e) { /**/ } })()
+      // initial sync when app opens
+      ; (async () => { try { await Offline.syncQueue() } catch (e) { /**/ } })()
     const unsub = NetInfo.addEventListener(async (state) => {
       if (state.isConnected) {
         try {
@@ -90,7 +82,7 @@ function AppNavigator() {
     })
     const onAppState = (next: AppStateStatus) => {
       if (next === 'active') {
-        ;(async () => { try { await Offline.syncQueue() } catch (e) { /* ignore */ } })()
+        ; (async () => { try { await Offline.syncQueue() } catch (e) { /* ignore */ } })()
       }
     }
     const sub = AppState.addEventListener('change', onAppState)
@@ -113,19 +105,21 @@ function AppNavigator() {
       />
       <NavigationContainer ref={navigationRef} theme={navigationTheme}>
         <Stack.Navigator
-          initialRouteName={initialRoute}
+          initialRouteName={'Dashboard'}
           screenOptions={{
             headerShown: false,
             contentStyle: { backgroundColor: theme.background },
             animation: 'slide_from_right',
           }}
         >
+          <Stack.Screen name="Dashboard" component={DashboardScreen} />
           <Stack.Screen name="Login" component={LoginScreen} />
           <Stack.Screen name="Register" component={RegisterScreen} />
           <Stack.Screen name="Scanner" component={ScannerScreen} />
           <Stack.Screen name="Verify" component={VerifyScreen} />
           <Stack.Screen name="Recent" component={RecentScansScreen} />
           <Stack.Screen name="Settings" component={SettingsScreen} />
+          <Stack.Screen name="InspectorVerification" component={InspectorVerificationScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </>

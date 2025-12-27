@@ -39,7 +39,42 @@ export default function VerifyScreen({ route, navigation }: Props) {
   const [showFlagModal, setShowFlagModal] = useState(false)
   const [flagNote, setFlagNote] = useState('')
 
+  const [userRole, setUserRole] = useState<string | null>(null)
+  const [userStatus, setUserStatus] = useState<string | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const isInspectorActive = userRole === 'inspector' && userStatus === 'active'
+
   useEffect(() => {
+    let mounted = true
+      ; (async () => {
+        try {
+          const t = await Storage.getToken()
+          if (!mounted) return
+          if (!t) {
+            setUserRole(null)
+            setUserStatus(null)
+            setAuthChecked(true)
+            return
+          }
+          const u = await Api.me()
+          if (!mounted) return
+          setUserRole(u?.role ?? null)
+          setUserStatus(u?.status ?? null)
+          setAuthChecked(true)
+        } catch (e) {
+          if (!mounted) return
+          setUserRole(null)
+          setUserStatus(null)
+          setAuthChecked(true)
+        }
+      })()
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!authChecked) return
     let mounted = true
     setLoading(true)
     setError(null)
@@ -51,26 +86,44 @@ export default function VerifyScreen({ route, navigation }: Props) {
         setData(res)
         const now = Date.now()
         try {
-          await Api.recordScan(code, { result: res, when: now })
-          await Storage.addRecentScan({ code, result: res, when: now, syncStatus: 'synced' })
+          if (isInspectorActive) {
+            await Api.recordScan(code, { result: res, when: now })
+            await Storage.addRecentScan({ code, result: res, when: now, syncStatus: 'synced' })
+          } else {
+            await Storage.addRecentScan({ code, result: res, when: now, syncStatus: 'unknown' })
+          }
         } catch (err) {
-          const queued = await Offline.addToQueue({ code, when: now, payload: { result: res } })
-          await Storage.addRecentScan({ code, result: res, when: now, syncStatus: 'pending', queueId: queued.id })
+          if (isInspectorActive) {
+            const queued = await Offline.addToQueue({ code, when: now, payload: { result: res } })
+            await Storage.addRecentScan({ code, result: res, when: now, syncStatus: 'pending', queueId: queued.id })
+          } else {
+            await Storage.addRecentScan({ code, result: res, when: now, syncStatus: 'unknown' })
+          }
         }
       })
       .catch(async (err: any) => {
-        const now = Date.now()
-        const queued = await Offline.addToQueue({ code, when: now, payload: { offline: true } })
-        await Storage.addRecentScan({ code, result: null, when: now, syncStatus: 'pending', queueId: queued.id })
-        setIsOffline(true)
-        setError('Queued for verification — will sync when online')
+        if (isInspectorActive) {
+          const now = Date.now()
+          const queued = await Offline.addToQueue({ code, when: now, payload: { offline: true } })
+          await Storage.addRecentScan({ code, result: null, when: now, syncStatus: 'pending', queueId: queued.id })
+          setIsOffline(true)
+          setError('Queued for verification — will sync when online')
+        } else {
+          setIsOffline(true)
+          setError('Offline — connect to internet to verify')
+        }
       })
       .finally(() => setLoading(false))
 
     return () => { mounted = false }
-  }, [code])
+  }, [code, authChecked, isInspectorActive])
 
   const handleMarkOk = async () => {
+    if (!isInspectorActive) {
+      Alert.alert('Inspector Sign In Required', 'Please sign in as a verified inspector to submit inspections.')
+      navigation.navigate('Login')
+      return
+    }
     setActionLoading('ok')
     try {
       await Api.recordScan(code, { action: 'ok', when: Date.now() })
@@ -87,6 +140,11 @@ export default function VerifyScreen({ route, navigation }: Props) {
   }
 
   const handleRaiseFlag = async () => {
+    if (!isInspectorActive) {
+      Alert.alert('Inspector Sign In Required', 'Please sign in as a verified inspector to report issues.')
+      navigation.navigate('Login')
+      return
+    }
     if (!flagNote.trim()) {
       Alert.alert('Note Required', 'Please describe the issue')
       return
@@ -108,6 +166,11 @@ export default function VerifyScreen({ route, navigation }: Props) {
   }
 
   const takePhoto = async () => {
+    if (!isInspectorActive) {
+      Alert.alert('Inspector Sign In Required', 'Please sign in as a verified inspector to upload evidence photos.')
+      navigation.navigate('Login')
+      return
+    }
     try {
       const perm = await ImagePicker.requestCameraPermissionsAsync()
       if (!perm.granted) {
@@ -116,7 +179,7 @@ export default function VerifyScreen({ route, navigation }: Props) {
       }
       const res = await ImagePicker.launchCameraAsync({ quality: 0.6 })
       if (res.canceled) return
-      
+
       const photoUri = res.assets?.[0]?.uri
       if (!photoUri) return
 
@@ -255,10 +318,10 @@ export default function VerifyScreen({ route, navigation }: Props) {
             <Text style={[styles.infoValue, { color: theme.text }]}>
               {data?.license_expiry
                 ? new Date(data.license_expiry).toLocaleDateString('en-US', {
-                    year: 'numeric',
-                    month: 'long',
-                    day: 'numeric',
-                  })
+                  year: 'numeric',
+                  month: 'long',
+                  day: 'numeric',
+                })
                 : 'Unknown'}
             </Text>
           </View>
@@ -292,34 +355,23 @@ export default function VerifyScreen({ route, navigation }: Props) {
           )}
         </Card>
 
-        {/* Owner Info */}
-        <Card variant="outlined" style={styles.section}>
-          <Text style={[styles.sectionTitle, { color: theme.text }]}>
-            Owner Information
-          </Text>
+        {data?.owner ? (
+          <Card variant="outlined" style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: theme.text }]}>Owner Information</Text>
 
-          <View style={styles.infoRow}>
-            <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
-              Name
-            </Text>
-            <Text style={[styles.infoValue, { color: theme.text }]}>
-              {data?.owner?.name || 'Not available'}
-            </Text>
-          </View>
-
-          <Text style={[styles.infoValue, { color: theme.text }]}>Owner: {data?.owner?.name || 'Not available'}</Text>
-
-          {data?.owner?.mask_phone && (
             <View style={styles.infoRow}>
-              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>
-                Phone
-              </Text>
-              <Text style={[styles.infoValue, { color: theme.text }]}>
-                {data.owner.mask_phone}
-              </Text>
+              <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Name</Text>
+              <Text style={[styles.infoValue, { color: theme.text }]}>{data.owner.name}</Text>
             </View>
-          )}
-        </Card>
+
+            {data.owner.mask_phone && (
+              <View style={styles.infoRow}>
+                <Text style={[styles.infoLabel, { color: theme.textSecondary }]}>Phone</Text>
+                <Text style={[styles.infoValue, { color: theme.text }]}>{data.owner.mask_phone}</Text>
+              </View>
+            )}
+          </Card>
+        ) : null}
 
         {/* Flags/Warnings */}
         {data?.flags && data.flags.length > 0 && (
@@ -379,25 +431,36 @@ export default function VerifyScreen({ route, navigation }: Props) {
           },
         ]}
       >
-        <Button
-          title="Mark OK"
-          onPress={handleMarkOk}
-          loading={actionLoading === 'ok'}
-          disabled={actionLoading !== null}
-          size="large"
-          style={{ flex: 1, marginRight: 8 }}
-          accessibilityLabel="Mark vehicle as OK"
-        />
-        <Button
-          title="Raise Flag"
-          onPress={() => setShowFlagModal(true)}
-          variant="danger"
-          loading={actionLoading === 'flag'}
-          disabled={actionLoading !== null}
-          size="large"
-          style={{ flex: 1 }}
-          accessibilityLabel="Report an issue with this vehicle"
-        />
+        {isInspectorActive ? (
+          <>
+            <Button
+              title="Mark OK"
+              onPress={handleMarkOk}
+              loading={actionLoading === 'ok'}
+              disabled={actionLoading !== null}
+              size="large"
+              style={{ flex: 1, marginRight: 8 }}
+              accessibilityLabel="Mark vehicle as OK"
+            />
+            <Button
+              title="Raise Flag"
+              onPress={() => setShowFlagModal(true)}
+              variant="danger"
+              loading={actionLoading === 'flag'}
+              disabled={actionLoading !== null}
+              size="large"
+              style={{ flex: 1 }}
+              accessibilityLabel="Report an issue with this vehicle"
+            />
+          </>
+        ) : (
+          <Button
+            title="Sign in as Inspector to Report"
+            onPress={() => navigation.navigate('Login')}
+            size="large"
+            style={{ flex: 1 }}
+          />
+        )}
       </View>
 
       {/* Flag Modal */}

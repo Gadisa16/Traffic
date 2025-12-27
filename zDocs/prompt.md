@@ -1,175 +1,309 @@
+# Traffic Management System - Multi-Component Prompt
+* Public, no-auth landing for both web and mobile
+* Anonymous vehicle verification (Option A)
+* Controlled admin registration
+* Inspector vs ordinary user registration flow
+* Backend enforcing all rules
+
+---
 
 ## 1️⃣ Prompt for **web-admin** (Admin Dashboard UI)
 
 **Project Context**
 
 This is the **Web Admin Dashboard** for a regional Traffic Management System serving the **Sidama Region (Hawassa city), Ethiopia**.
-The dashboard is used by **transport authority administrators** to manage taxis, owners, licenses, inspections, and system data.
 
-The UI must feel **official, professional, and trustworthy**, suitable for use by government staff and for presentation to stakeholders.
+The system is a **public-service platform**. Some information is intentionally available **without authentication**, while sensitive operations are restricted to verified administrators.
+
+The UI must feel **official, professional, and trustworthy**, suitable for government staff, auditors, and public-sector stakeholders.
 
 ---
 
 ### Core Responsibilities
 
-The admin dashboard must allow administrators to:
+The web application has **two major layers**:
+a **public landing layer** and a **protected admin layer**.
 
-1. **Authenticate and access the system**
+#### 1. **Public landing (no authentication required)**
 
-   * Secure login
-   * Protected routes
-   * Clear session state (logged in / logged out)
+Any visitor can:
 
-2. **Manage vehicles (taxis)**
+* View a public landing/dashboard page
+* See high-level, non-sensitive information:
 
-   * View a paginated list of registered vehicles
-   * View detailed vehicle information
-   * Register new vehicles
-   * Edit existing vehicle data
-   * Soft-delete vehicles (move to Trash)
-   * Restore or permanently purge deleted vehicles from a Trash page
+  * Total registered vehicles
+  * Count of valid / expiring / expired licenses
+* Search or verify a vehicle by:
 
-3. **Manage vehicle owners**
+  * QR code
+  * Plate number
+  * Side number
+* View **minimal, public-safe vehicle data only**:
 
-   * Register owners
-   * Associate owners with vehicles
-   * View and update owner information
-   * Ensure sensitive data is handled carefully and not overexposed in UI
+  * Plate number
+  * Vehicle status
+  * License validity
+  * Expiry date (no owner identity, no documents)
 
-4. **Manage license and renewal status**
+This page must **not redirect to login by default**.
 
-   * Assign license start and expiry dates
-   * Clearly show license status (valid, expiring soon, expired)
-   * Provide visual indicators for urgency
-   * Enable filtering by license status
+---
 
-5. **Dashboard overview**
+#### 2. **Authentication and access control (admin only)**
 
-   * High-level summary cards:
+* Secure login for admins
+* Protected routes for all management actions
+* Clear session state (logged in / logged out)
+* Registration behavior controlled by environment variable:
 
-     * Total vehicles
-     * Expiring soon
-     * Expired
-     * Deleted
-   * Simple, readable data visualization (not complex charts)
+  * `ALLOW_REGISTRATION=true | false`
 
-6. **Empty, loading, and error states**
+When registration is enabled:
 
-   * Empty lists should show intentional, professional empty-state screens
-   * Loading states should be calm and non-blocking
-   * Errors should be explained clearly and respectfully
+* Newly registered users are **not admins by default**
+* They have read-only, non-sensitive access
+* Only verified admins or super-admins can:
+
+  * Approve accounts
+  * Assign admin roles
+  * Activate full permissions
+
+---
+
+#### 3. **Vehicle management (admins only)**
+
+Admins can:
+
+* View a paginated list of vehicles
+* View detailed vehicle records
+* Register new vehicles
+* Edit vehicle data
+* Soft-delete vehicles (move to Trash)
+* Restore or permanently purge vehicles from Trash
+
+---
+
+#### 4. **Owner management (admins only)**
+
+* Register vehicle owners
+* Associate owners with vehicles
+* View and update owner details
+* Ensure sensitive fields are hidden unless explicitly required
+
+---
+
+#### 5. **License and renewal management**
+
+* Assign license start and expiry dates
+* Display license status:
+
+  * Valid
+  * Expiring soon
+  * Expired
+* Clear visual indicators for urgency
+* Filtering by license status
+
+---
+
+#### 6. **Dashboard overview**
+
+* High-level summary cards:
+
+  * Total vehicles
+  * Valid
+  * Expiring soon
+  * Expired
+  * Deleted
+* Simple, readable visual summaries (no complex charts)
+
+---
+
+#### 7. **Empty, loading, and error states**
+
+* Intentional empty states
+* Calm loading indicators
+* Clear, respectful error messages
 
 ---
 
 ### UI / Design Requirements
 
-* The UI should blend **modern usability** with a **visual identity that resonates with Ethiopian culture**
-* Use a color palette inspired by:
+* Blend **modern usability** with **Ethiopian cultural identity**
+* Colors inspired by:
 
   * Ethiopian landscapes
-  * Traditional textiles
-  * Earth tones and natural contrasts
-* Design should feel **official, calm, and structured**
-* Avoid flashy or playful elements
-* Consistent spacing, typography, and layout across all pages
+  * Sidama region textiles
+  * Earth tones and natural contrast
+* Design should feel:
+
+  * Official
+  * Calm
+  * Structured
+* Avoid playful or flashy UI elements
+* Consistent spacing, typography, and layout
 
 #### Theme Support
 
-* Support **Light and Dark themes**
-* Dark theme should lean toward **dark blue tones**, not pure black
-* Theme should be consistent across all admin pages
+* Light and Dark themes
+* Dark theme should use **dark blue tones**
+* Consistent theme across public and admin sections
 
 ---
 
 ### UX Principles
 
-* Clarity over cleverness
-* Minimal clicks for common tasks
-* Forms should guide users and prevent mistakes
-* The UI should feel “ready for real-world use,” not experimental
+* Public users should get value without friction
+* Admin tasks should be efficient and deliberate
+* Forms should prevent mistakes
+* The system should feel production-ready and policy-aware
 
 ---
 
-## 2️⃣ Prompt for **mobile-inspector** (Inspector Mobile App)
+## 2️⃣ Prompt for **mobile-inspector** (Inspector & Public Mobile App)
 
 **Project Context**
 
-This is a **mobile application for transport inspectors** operating in the **Sidama Region (Hawassa city), Ethiopia**.
+This is a **mobile application** used in the **Sidama Region (Hawassa city), Ethiopia**.
 
-Inspectors use this app **in the field** to quickly verify taxis by scanning a QR code placed on the vehicle and reviewing its status.
+The app serves **two user types**:
 
-The app must be **fast, reliable, and easy to use under real-world conditions**.
+* **Public / ordinary users** (no login required)
+* **Transport inspectors** (verified, role-based access)
+
+The app must work reliably **in the field**, often under time pressure.
 
 ---
 
 ### Core Responsibilities
 
-1. **Authentication**
+#### 1. **Public (no authentication required)**
 
-   * Inspector login
-   * Persisted session
-   * Clear logout option
+Any user can:
 
-2. **QR Code scanning**
+* Open the app without logging in
+* Access a public landing screen
+* Scan a vehicle QR code
+* Search by plate or side number
+* View **minimal, public-safe vehicle data**:
 
-   * Scan a QR code attached to a taxi
-   * Handle invalid or unreadable codes gracefully
-   * Prevent accidental duplicate scans
+  * Plate number
+  * Vehicle status
+  * License validity
+  * Expiry date
 
-3. **Vehicle verification**
-   After scanning, display:
+No owner identity, documents, or internal flags are shown.
 
-   * Plate number
-   * Vehicle status
-   * License validity (valid / expired / expiring)
-   * Basic owner information (limited, inspector-safe view)
-   * Any flags or warnings
+---
 
-4. **Offline and error handling**
+#### 2. **Registration (mobile only)**
 
-   * Clear feedback when network is unavailable
-   * Graceful handling of API errors
-   * Never leave the user confused about what went wrong
+Users may optionally register.
 
-5. **History / recent scans**
+During registration:
 
-   * Show a simple list of recently scanned vehicles
-   * Useful for inspectors during a shift
+* User provides:
+
+  * Email or phone number
+  * Password
+* User selects role via radio buttons:
+
+  * **Ordinary User**
+  * **Inspector**
+
+If **Ordinary User**:
+
+* Account is created immediately
+* Access remains limited to public data
+
+If **Inspector**:
+
+* Additional fields appear:
+
+  * Official ID / badge
+  * Employment letter or proof
+* Account status becomes **Pending Verification**
+* Inspector privileges are **not granted** until admin approval
+
+---
+
+#### 3. **Inspector authentication**
+
+For verified inspectors only:
+
+* Secure login
+* Persisted session
+* Clear logout option
+
+---
+
+#### 4. **QR code scanning (primary inspector flow)**
+
+* Fast QR scanning
+* Graceful handling of invalid codes
+* Duplicate scan prevention
+
+---
+
+#### 5. **Vehicle verification (inspector view)**
+
+After scanning, inspectors see:
+
+* Plate number
+* Vehicle status
+* License validity and expiry
+* Limited owner info (inspector-safe)
+* Flags or warnings (if any)
+
+---
+
+#### 6. **Offline and error handling**
+
+* Clear offline indicators
+* Queue scans when offline
+* Sync automatically when back online
+* Clear error messages
+
+---
+
+#### 7. **Recent scans**
+
+* Simple list of recent scans
+* Useful during inspections and shifts
 
 ---
 
 ### UI / Design Requirements
 
-* Designed for **outdoor, on-the-move usage**
+* Designed for outdoor use
 * Large touch targets
-* High contrast and readable typography
+* High contrast text
 
-The UI should blend **modern mobile UX** with a **local Ethiopian identity**:
+Visual identity:
 
-* Visual references inspired by:
+* Inspired by:
 
   * Hawassa city
-  * Sidama region culture
-  * Transport and public service themes
-* Use color palettes inspired by Ethiopian nature and textiles
-* Avoid stereotypes or decorative excess
+  * Sidama culture
+  * Public transport and safety
+* Ethiopian-inspired colors
+* Clean, respectful visuals
 
 ---
 
 ### Theme Support
 
-* Support **Light and Dark themes**
-* Dark theme should use **dark blue tones**
-* Theme should follow system preference by default
+* Light and Dark themes
+* Dark blue tones for dark mode
+* Follow system preference by default
 
 ---
 
 ### UX Principles
 
-* Speed matters more than density
-* One primary action per screen
-* Clear success and failure feedback
-* Inspectors should be able to use the app with minimal training
+* Public access first, no friction
+* Inspector tools are fast and focused
+* One main action per screen
+* Minimal training required
 
 ---
 
@@ -179,67 +313,117 @@ The UI should blend **modern mobile UX** with a **local Ethiopian identity**:
 
 This is the **central backend system** for a Traffic Management platform serving the **Sidama Region (Hawassa city), Ethiopia**.
 
-The backend acts as the **single source of truth** for all data and business rules and serves both:
+It is the **single source of truth** and serves:
 
-* The web admin dashboard
-* The mobile inspector app
+* Public users
+* Mobile inspectors
+* Web administrators
 
 ---
 
 ### Core Responsibilities
 
-1. **Authentication and authorization**
+#### 1. **Authentication and authorization**
 
-   * Authenticate users
-   * Enforce role-based access (admin vs inspector)
-   * Protect all sensitive endpoints
+* Support anonymous (public) access for safe endpoints
+* Role-based access:
 
-2. **Vehicle management**
+  * Public
+  * Ordinary user
+  * Inspector (pending / verified)
+  * Admin
+  * Super admin
+* Enforce permissions strictly at API level
 
-   * Register vehicles using plate number as a unique identifier
-   * Maintain full vehicle lifecycle
-   * Support soft delete and permanent purge
-   * Track vehicle status changes
+---
 
-3. **Owner management**
+#### 2. **Public vehicle verification (Option A)**
 
-   * Store owner details securely
-   * Associate owners with vehicles
-   * Ensure sensitive fields are protected and controlled
+* Allow anonymous access to:
 
-4. **License and renewal tracking**
+  * `/vehicles/verify`
+* Return only non-sensitive fields:
 
-   * Store license start and expiry dates
-   * Determine license status dynamically
-   * Support queries for expiring and expired licenses
+  * Plate number
+  * Status
+  * License validity
+  * Expiry date
+* No owner identity or documents
 
-5. **Inspector verification flow**
+---
 
-   * Fetch vehicle data by QR code or identifier
-   * Return inspector-safe views of data
-   * Ensure fast response times for scan requests
+#### 3. **User registration and lifecycle**
 
-6. **Data integrity and auditability**
+* Ordinary users: auto-approved
+* Inspectors:
 
-   * Prevent invalid state transitions
-   * Ensure consistent relationships between entities
-   * Support migrations and schema evolution safely
+  * Require document submission
+  * Start as `pending`
+  * Become active only after admin approval
+* Admin registration gated by `ALLOW_REGISTRATION`
+
+---
+
+#### 4. **Vehicle management**
+
+* Plate number as unique identifier
+* Full lifecycle support
+* Soft delete and purge
+* Status tracking
+
+---
+
+#### 5. **Owner management**
+
+* Secure storage of owner data
+* Strict control of sensitive fields
+* Associations enforced by backend rules
+
+---
+
+#### 6. **License and renewal tracking**
+
+* Store start and expiry dates
+* Compute status dynamically
+* Support expiring / expired queries
+
+---
+
+#### 7. **Inspector operations**
+
+* Optimized read endpoints for fast scans
+* Inspector-safe response schemas
+* Logging of inspections (when authenticated)
+
+---
+
+#### 8. **Data integrity and auditability**
+
+* Prevent invalid state transitions
+* Track approvals and role changes
+* Support migrations and schema evolution
 
 ---
 
 ### API Design Expectations
 
 * Clear, predictable endpoints
+* Separate public vs protected routes
 * Consistent response formats
-* Proper error handling with meaningful messages
-* No business logic duplicated in clients
+* Meaningful error messages
+* No business logic in clients
 
 ---
 
 ### Operational Expectations
 
 * Environment-driven configuration
-* Safe handling of migrations
-* Ready for cloud deployment
-* Structured in a way that supports future scale and regulation
-* Comprehensive logging and monitoring hooks
+* Safe migrations
+* Cloud-ready deployment
+* Designed for regulation, audits, and scale
+* Structured logging and monitoring
+
+---
+
+
+can you also include things about side number please still keep the content unchanged except for side number and other important things you want to add and touch also as the admin and mobile registration is something different and user registered through mobile app can't be admin even if they are registering for first time. they can will be ordinary user or pending verification inspector if they add necessary data like Official ID/badge, employment letter from the authority (e.g., police department).
