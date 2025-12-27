@@ -11,12 +11,12 @@ import {
     View,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { RootStackParamList } from '../App'
 import Button from '../components/Button'
 import Card from '../components/Card'
 import { useTheme } from '../context/ThemeContext'
 import * as Api from '../lib/api'
 import * as Storage from '../lib/storage'
+import { RootStackParamList } from '../types'
 
 type Props = NativeStackScreenProps<RootStackParamList, 'Dashboard'>
 
@@ -37,37 +37,57 @@ export default function DashboardScreen({ navigation }: Props) {
     const [stats, setStats] = useState<Stats | null>(null)
     const [statsError, setStatsError] = useState<string | null>(null)
 
+    const [authLoading, setAuthLoading] = useState(true)
+    const [user, setUser] = useState<any | null>(null)
     const [userRole, setUserRole] = useState<string | null>(null)
     const [userStatus, setUserStatus] = useState<string | null>(null)
 
     const isInspectorActive = useMemo(() => userRole === 'inspector' && userStatus === 'active', [userRole, userStatus])
 
+    const loadAuth = async () => {
+        setAuthLoading(true)
+        try {
+            const t = await Storage.getToken()
+            if (!t) {
+                setUser(null)
+                setUserRole(null)
+                setUserStatus(null)
+                return
+            }
+            const u = await Api.me()
+            setUser(u)
+            setUserRole(u?.role ?? null)
+            setUserStatus(u?.status ?? null)
+        } catch (e) {
+            setUser(null)
+            setUserRole(null)
+            setUserStatus(null)
+        } finally {
+            setAuthLoading(false)
+        }
+    }
+
     useEffect(() => {
         let mounted = true
             ; (async () => {
-                try {
-                    const t = await Storage.getToken()
-                    if (!mounted) return
-                    if (!t) {
-                        setUserRole(null)
-                        setUserStatus(null)
-                        return
-                    }
-                    const u = await Api.me()
-                    if (!mounted) return
-                    setUserRole(u?.role ?? null)
-                    setUserStatus(u?.status ?? null)
-                } catch (e) {
-                    if (!mounted) return
-                    setUserRole(null)
-                    setUserStatus(null)
-                }
+                if (!mounted) return
+                await loadAuth()
             })()
-
+        const unsub = navigation.addListener('focus', () => {
+            loadAuth()
+        })
         return () => {
             mounted = false
+            unsub()
         }
-    }, [])
+    }, [navigation])
+
+    const handleLogout = async () => {
+        await Storage.clearToken()
+        setUser(null)
+        setUserRole(null)
+        setUserStatus(null)
+    }
 
     useEffect(() => {
         let mounted = true
@@ -217,19 +237,37 @@ export default function DashboardScreen({ navigation }: Props) {
                         </View>
                     )}
 
-                    <View style={styles.linksRow}>
-                        <Button
-                            title="Sign In"
-                            onPress={() => navigation.navigate('Login')}
-                            variant="outline"
-                            style={{ flex: 1, marginRight: 8 }}
-                        />
-                        <Button
-                            title="Sign Up"
-                            onPress={() => navigation.navigate('Register')}
-                            style={{ flex: 1 }}
-                        />
-                    </View>
+                    {authLoading ? (
+                        <View style={styles.statsLoading}>
+                            <ActivityIndicator color={theme.accent} />
+                            <Text style={[styles.statsLoadingText, { color: theme.textSecondary }]}>Checking account...</Text>
+                        </View>
+                    ) : user ? (
+                        <Card variant="default" style={{ marginTop: 12 }}>
+                            <Text style={[styles.sectionText, { color: theme.text }]}>Signed in as: {user?.username}</Text>
+                            <Text style={[styles.sectionText, { color: theme.textSecondary }]}>Role: {userRole || 'unknown'} • Status: {userStatus || 'unknown'}</Text>
+                            <Button
+                                title="Sign Out"
+                                onPress={handleLogout}
+                                variant="secondary"
+                                style={{ marginTop: 12 }}
+                            />
+                        </Card>
+                    ) : (
+                        <View style={styles.linksRow}>
+                            <Button
+                                title="Sign In"
+                                onPress={() => navigation.navigate('Login')}
+                                variant="outline"
+                                style={{ flex: 1, marginRight: 8 }}
+                            />
+                            <Button
+                                title="Sign Up"
+                                onPress={() => navigation.navigate('Register')}
+                                style={{ flex: 1 }}
+                            />
+                        </View>
+                    )}
 
                     {userRole === 'inspector' && userStatus !== 'active' ? (
                         <Button

@@ -10,7 +10,11 @@ export async function saveAuth(auth: AuthRecord) {
   try {
     await SecureStore.setItemAsync(TOKEN_KEY, JSON.stringify(auth))
   } catch (e) {
-    // ignore
+    try {
+      await AsyncStorage.setItem(TOKEN_KEY, JSON.stringify(auth))
+    } catch (e2) {
+      // ignore
+    }
   }
 }
 
@@ -20,7 +24,13 @@ export async function getAuth(): Promise<AuthRecord | null> {
     if (!raw) return null
     return JSON.parse(raw) as AuthRecord
   } catch (e) {
-    return null
+    try {
+      const raw = await AsyncStorage.getItem(TOKEN_KEY)
+      if (!raw) return null
+      return JSON.parse(raw) as AuthRecord
+    } catch (e2) {
+      return null
+    }
   }
 }
 
@@ -37,6 +47,11 @@ export async function clearToken() {
   try {
     await SecureStore.deleteItemAsync(TOKEN_KEY)
   } catch (e) {
+    // ignore
+  }
+  try {
+    await AsyncStorage.removeItem(TOKEN_KEY)
+  } catch (e2) {
     // ignore
   }
 }

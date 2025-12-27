@@ -121,10 +121,9 @@ def register(
 
     now = datetime.datetime.utcnow()
 
-    # Bootstrap rule: if there are no users, the first account becomes super_admin and active
-    # to prevent lockout.
+    # Bootstrap rule: if there are no users yet, activate the first account immediately
+    # (so the system is usable), but keep the requested role (public/inspector).
     if existing is None:
-        role = 'super_admin'
         status_value = 'active'
         email_verified = 1 if email else 0
         phone_verified = 1 if phone else 0
