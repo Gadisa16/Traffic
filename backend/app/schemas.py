@@ -181,3 +181,16 @@ class UserDocumentOut(BaseModel):
 
     class Config:
         orm_mode = True
+
+
+class AdminRegisterBody(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+
+
+class AdminVerificationBody(BaseModel):
+    user_id: int
+    approved: bool
+    rejection_reason: Optional[str] = None

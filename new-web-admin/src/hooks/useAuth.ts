@@ -1,7 +1,7 @@
 import * as Api from '@/lib/api';
 import { useCallback, useEffect, useState } from 'react';
 
-export type AppRole = 'admin' | 'inspector';
+export type AppRole = 'admin' | 'super_admin' | 'inspector';
 
 export interface AuthUser {
   id: string;
@@ -71,10 +71,22 @@ export function useSupabaseAuth() {
     }
   };
 
-  const signUp = async (_email: string, _password: string, _name: string, _role: AppRole = 'inspector') => {
-    // Admin creation should be handled via controlled provisioning in FastAPI.
-    // Keep method for compatibility with existing UI, but disallow to avoid opening admin registration.
-    return { error: new Error('Sign up is disabled. Please contact an administrator.') };
+  const signUp = async (emailOrUsername: string, password: string, name: string, role: AppRole = 'inspector') => {
+    try {
+      // Check if admin signup is enabled via env var
+      const enableAdminSignup = import.meta.env.VITE_ENABLE_ADMIN_SIGNUP === 'true';
+
+      if (!enableAdminSignup) {
+        return { error: new Error('Admin sign up is disabled. Please contact an administrator.') };
+      }
+
+      // Call admin registration endpoint
+      await Api.registerAdmin(name, password, emailOrUsername);
+      await loadMe();
+      return { error: null as Error | null };
+    } catch (e) {
+      return { error: e as Error };
+    }
   };
 
   const signOut = async () => {

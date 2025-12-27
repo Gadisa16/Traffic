@@ -1,5 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 export interface InspectionLog {
   id: string;
@@ -29,34 +28,9 @@ export function useInspectionLogs(inspectorId?: string) {
   return useQuery({
     queryKey: ['inspection_logs', inspectorId],
     queryFn: async () => {
-      let query = supabase
-        .from('inspection_logs')
-        .select(`
-          *,
-          vehicles (
-            id,
-            plate_number,
-            make,
-            model,
-            color,
-            license_expiry_date,
-            status,
-            owners (
-              full_name
-            )
-          )
-        `)
-        .order('scanned_at', { ascending: false })
-        .limit(20);
-
-      if (inspectorId) {
-        query = query.eq('inspector_id', inspectorId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      return data as InspectionLogWithVehicle[];
+      // TODO: Implement inspection logs endpoint in FastAPI backend
+      // For now, return empty array
+      return [] as InspectionLogWithVehicle[];
     },
     enabled: !!inspectorId,
   });
@@ -67,14 +41,8 @@ export function useCreateInspectionLog() {
 
   return useMutation({
     mutationFn: async (log: Omit<InspectionLog, 'id' | 'scanned_at'>) => {
-      const { data, error } = await supabase
-        .from('inspection_logs')
-        .insert(log)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      // TODO: Implement inspection logs endpoint in FastAPI backend
+      throw new Error('Inspection logs not yet implemented in FastAPI backend');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['inspection_logs'] });

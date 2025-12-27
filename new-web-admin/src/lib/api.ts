@@ -92,3 +92,93 @@ export async function refreshToken(): Promise<Token> {
 export function logout(): void {
     clearAccessToken();
 }
+
+export async function registerAdmin(username: string, password: string, email?: string, phone?: string): Promise<Token> {
+    const token = await fetchJson<Token>('/auth/admin/register', {
+        method: 'POST',
+        body: JSON.stringify({ username, password, email, phone }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+
+    setAccessToken(token.access_token);
+    return token;
+}
+
+// Vehicle API methods
+export async function getVehicles(includeDeleted = false): Promise<any[]> {
+    const endpoint = includeDeleted ? '/vehicles?include_deleted=true' : '/vehicles';
+    return fetchJson(endpoint);
+}
+
+export async function getDeletedVehicles(): Promise<any[]> {
+    return fetchJson('/vehicles/deleted');
+}
+
+export async function getVehicle(id: string): Promise<any> {
+    return fetchJson(`/vehicles/${id}`);
+}
+
+export async function getVehicleByPlate(plateNumber: string): Promise<any> {
+    return fetchJson(`/vehicles/by_plate/${plateNumber}`);
+}
+
+export async function createVehicle(vehicle: any): Promise<any> {
+    return fetchJson('/vehicles', {
+        method: 'POST',
+        body: JSON.stringify(vehicle),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+export async function updateVehicle(id: string, vehicle: any): Promise<any> {
+    return fetchJson(`/vehicles/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(vehicle),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+export async function deleteVehicle(id: string): Promise<any> {
+    return fetchJson(`/vehicles/${id}`, { method: 'DELETE' });
+}
+
+export async function restoreVehicle(id: string): Promise<any> {
+    return fetchJson(`/vehicles/${id}/undelete`, { method: 'POST' });
+}
+
+export async function purgeVehicle(id: string): Promise<any> {
+    return fetchJson(`/vehicles/${id}/purge`, { method: 'POST' });
+}
+
+export async function getStats(): Promise<any> {
+    return fetchJson('/vehicles/stats/summary');
+}
+
+// Owner API methods
+export async function getOwners(): Promise<any[]> {
+    return fetchJson('/owners');
+}
+
+export async function getOwner(id: string): Promise<any> {
+    return fetchJson(`/owners/${id}`);
+}
+
+export async function createOwner(owner: any): Promise<any> {
+    return fetchJson('/owners', {
+        method: 'POST',
+        body: JSON.stringify(owner),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+export async function updateOwner(id: string, owner: any): Promise<any> {
+    return fetchJson(`/owners/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(owner),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+export async function deleteOwner(id: string): Promise<any> {
+    return fetchJson(`/owners/${id}`, { method: 'DELETE' });
+}

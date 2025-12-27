@@ -1,17 +1,17 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/AdminLayout';
 import { PageHeader } from '@/components/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOwners } from '@/hooks/useOwners';
-import { supabase } from '@/integrations/supabase/client';
+import { useCreateVehicle, useUpdateVehicle, useVehicle } from '@/hooks/useVehicles';
+import { ArrowLeft, Car, Plus, Save, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { Car, Save, ArrowLeft, Plus, User } from 'lucide-react';
 import { z } from 'zod';
 
 const vehicleSchema = z.object({
@@ -45,46 +45,33 @@ export default function VehicleFormPage() {
     color: '',
     license_start_date: new Date().toISOString().split('T')[0],
     license_expiry_date: '',
-    owner_id: '',
+    owner_id: 'none',
     status: 'active',
   });
 
+
+  const { data: vehicleData } = useVehicle(id || '');
+  const createVehicle = useCreateVehicle();
+  const updateVehicle = useUpdateVehicle();
+
   useEffect(() => {
-    if (isEditing && id) {
-      fetchVehicle(id);
-    }
-  }, [id, isEditing]);
-
-  const fetchVehicle = async (vehicleId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('*')
-        .eq('id', vehicleId)
-        .single();
-
-      if (error) throw error;
-      if (data) {
-        setFormData({
-          plate_number: data.plate_number,
-          make: data.make,
-          model: data.model,
-          year: data.year,
-          color: data.color,
-          license_start_date: data.license_start_date,
-          license_expiry_date: data.license_expiry_date,
-          owner_id: data.owner_id || '',
-          status: data.status === 'deleted' ? 'suspended' : data.status,
-        });
-      }
-    } catch (err) {
-      console.error('Error fetching vehicle:', err);
-      toast.error('Failed to load vehicle');
-      navigate('/admin/vehicles');
-    } finally {
+    if (vehicleData && isEditing) {
+      setFormData({
+        plate_number: vehicleData.plate_number,
+        make: vehicleData.make || '',
+        model: vehicleData.model || '',
+        year: vehicleData.year || new Date().getFullYear(),
+        color: vehicleData.color || '',
+        license_start_date: vehicleData.license?.start_date || new Date().toISOString().split('T')[0],
+        license_expiry_date: vehicleData.license?.expiry_date || '',
+        owner_id: vehicleData.owner?.id?.toString() || 'none',
+        status: vehicleData.status === 'deleted' ? 'suspended' : (vehicleData.status as 'active' | 'suspended'),
+      });
+      setIsFetching(false);
+    } else if (!isEditing) {
       setIsFetching(false);
     }
-  };
+  }, [vehicleData, isEditing]);
 
   const handleChange = (field: keyof VehicleFormData, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
@@ -120,29 +107,27 @@ export default function VehicleFormPage() {
         model: formData.model,
         year: Number(formData.year),
         color: formData.color,
-        license_start_date: formData.license_start_date,
-        license_expiry_date: formData.license_expiry_date,
-        owner_id: formData.owner_id || null,
+        owner: formData.owner_id && formData.owner_id !== 'none' ? {
+          id: parseInt(formData.owner_id)
+        } : null,
+        license: {
+          start_date: formData.license_start_date,
+          expiry_date: formData.license_expiry_date,
+        },
         status: formData.status,
       };
 
       if (isEditing && id) {
-        const { error } = await supabase.from('vehicles').update(payload).eq('id', id);
-        if (error) throw error;
-        toast.success('Vehicle updated successfully');
+        await updateVehicle.mutateAsync({ id, ...payload });
       } else {
-        const { error } = await supabase.from('vehicles').insert(payload);
-        if (error) throw error;
-        toast.success('Vehicle registered successfully');
+        await createVehicle.mutateAsync(payload as any);
       }
 
       navigate('/admin/vehicles');
     } catch (err: any) {
       console.error('Save error:', err);
-      if (err.code === '23505') {
+      if (err.message?.includes('already exists')) {
         toast.error('A vehicle with this plate number already exists');
-      } else {
-        toast.error('Failed to save vehicle');
       }
     } finally {
       setIsLoading(false);
@@ -294,9 +279,9 @@ export default function VehicleFormPage() {
                   <Select value={formData.owner_id} onValueChange={(v) => handleChange('owner_id', v)}>
                     <SelectTrigger><SelectValue placeholder="Select owner (optional)" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">No owner assigned</SelectItem>
+                      <SelectItem value="none">No owner assigned</SelectItem>
                       {owners?.map((owner) => (
-                        <SelectItem key={owner.id} value={owner.id}>
+                        <SelectItem key={owner.id} value={owner.id.toString()}>
                           {owner.full_name} ({owner.phone})
                         </SelectItem>
                       ))}

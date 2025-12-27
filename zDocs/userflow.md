@@ -30,3 +30,53 @@ To make this production-ready, I'd recommend a multi-step, gated process that's 
     - **Error Handling & UX**: If rejected, provide clear feedback (e.g., "Upload clearer ID photo") and allow resubmission. Use progressive disclosure in UI—show steps as a wizard to guide users.
 
 5. **MVP Phasing**: Start with owner registration only (higher volume), add inspectors later. Test with a beta group to iron out issues.
+
+
+
+
+
+
+
+---
+
+**Admin signup & verification rules**
+
+* Admin signup is allowed **only if** `ALLOW_ADMIN_REGISTRATION=true` in `.env`.
+* If **no super admin exists yet**:
+
+  * The **first user who registers as admin** is automatically promoted to **super admin**.
+* If a super admin already exists:
+
+  * Any new user who registers as admin is created as **unverified admin** (not an active admin).
+
+**Unverified admin behavior**
+
+* Has a special state: `unverified_admin`
+* Can log in
+* Can access the dashboard
+* Sees only **read-only / normal data**
+* Cannot manage users, settings, approvals, or admin actions
+
+**Verification flow**
+
+* Only **verified admins or super admins** can:
+
+  * View a dedicated “Unverified Admins” page
+  * Approve or reject unverified admin accounts
+* Once approved:
+
+  * User becomes a **verified admin**
+* If rejected:
+
+  * Account is either downgraded to ordinary user or disabled (your choice)
+
+**Important constraints**
+
+* Mobile app registrations:
+
+  * Can **never** create admins
+  * Only ordinary users or pending inspectors
+* Admin creation is strictly web/backend controlled
+
+---
+

@@ -44,10 +44,10 @@ web-admin/.env.local
 !**/.env.*.example
 
 # Virtual environments
-backend/.venv/
-.venv/
-venv/
-env/
+# backend/.venv/
+# .venv/
+# venv/
+# env/
 
 # Poetry / caches
 .cache/

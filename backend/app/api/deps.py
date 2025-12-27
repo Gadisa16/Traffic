@@ -82,7 +82,8 @@ def require_status(*statuses: str):
 def require_role(role: str):
     def role_checker(user: models.User = Depends(get_current_user)):
         s = getattr(user, 'status', None) or 'active'
-        if s != 'active':
+        # Unverified admins can log in but have read-only access
+        if s not in ('active', 'unverified_admin'):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Account not active")
         if user.role != role:
@@ -96,7 +97,8 @@ def require_role(role: str):
 def require_any_role(*roles: str):
     def role_checker(user: models.User = Depends(get_current_user)):
         s = getattr(user, 'status', None) or 'active'
-        if s != 'active':
+        # Unverified admins can log in but have read-only access
+        if s not in ('active', 'unverified_admin'):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN, detail="Account not active")
         if user.role not in roles:
@@ -105,3 +107,17 @@ def require_any_role(*roles: str):
         return user
 
     return role_checker
+
+
+def require_verified_admin():
+    """Require an active (verified) admin or super_admin. Blocks unverified_admin."""
+    def checker(user: models.User = Depends(get_current_user)):
+        if user.role not in ('admin', 'super_admin'):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+        if user.status != 'active':
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN, 
+                detail="Your admin account must be verified to perform this action")
+        return user
+    return checker

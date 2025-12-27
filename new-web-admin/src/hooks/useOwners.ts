@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import * as Api from '@/lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 export interface Owner {
@@ -20,23 +20,11 @@ export function useOwners() {
   return useQuery({
     queryKey: ['owners'],
     queryFn: async () => {
-      const { data: owners, error } = await supabase
-        .from('owners')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Get vehicle counts for each owner
-      const { data: vehicleCounts, error: countError } = await supabase
-        .from('vehicles')
-        .select('owner_id')
-        .neq('status', 'deleted');
-
-      if (countError) throw countError;
+      const owners = await Api.getOwners();
+      const vehicles = await Api.getVehicles();
 
       const countMap: Record<string, number> = {};
-      vehicleCounts?.forEach(v => {
+      vehicles?.forEach((v: any) => {
         if (v.owner_id) {
           countMap[v.owner_id] = (countMap[v.owner_id] || 0) + 1;
         }
@@ -54,13 +42,7 @@ export function useOwner(id: string) {
   return useQuery({
     queryKey: ['owners', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('*')
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await Api.getOwner(id);
       return data as Owner | null;
     },
     enabled: !!id,
@@ -72,14 +54,7 @@ export function useCreateOwner() {
 
   return useMutation({
     mutationFn: async (owner: Omit<Owner, 'id' | 'created_at' | 'updated_at'>) => {
-      const { data, error } = await supabase
-        .from('owners')
-        .insert(owner)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await Api.createOwner(owner);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owners'] });
@@ -96,15 +71,7 @@ export function useUpdateOwner() {
 
   return useMutation({
     mutationFn: async ({ id, ...owner }: Partial<Owner> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('owners')
-        .update(owner)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await Api.updateOwner(id, owner);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['owners'] });
@@ -122,12 +89,7 @@ export function useDeleteOwner() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('owners')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      return await Api.deleteOwner(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['owners'] });

@@ -1,20 +1,25 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { 
-  Car, Shield, QrCode, Sun, Moon, ArrowRight, Search, 
-  CheckCircle2, AlertTriangle, XCircle, Users, Clock,
-  MapPin, Phone
-} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { useStats } from '@/hooks/useStats';
-import { supabase } from '@/integrations/supabase/client';
-import { toast } from 'sonner';
+import {
+  AlertTriangle,
+  Car,
+  CheckCircle2,
+  Clock,
+  Moon,
+  QrCode,
+  Search,
+  Shield,
+  Sun,
+  XCircle
+} from 'lucide-react';
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 
 const Index = () => {
   const navigate = useNavigate();
@@ -37,26 +42,38 @@ const Index = () => {
 
     try {
       const query = searchQuery.trim().toUpperCase();
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select('plate_number, status, license_expiry_date, license_start_date, make, model, color')
-        .or(`plate_number.ilike.%${query}%`)
-        .neq('status', 'deleted')
-        .limit(1)
-        .maybeSingle();
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/vehicles/verify?code=${encodeURIComponent(query)}`);
 
-      if (error) throw error;
+      if (!response.ok) {
+        if (response.status === 404) {
+          setSearchError('No vehicle found with this plate number.');
+          return;
+        }
+        throw new Error('Failed to search');
+      }
+
+      const data = await response.json();
 
       if (data) {
         const today = new Date();
-        const expiryDate = new Date(data.license_expiry_date);
-        const daysUntilExpiry = Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
-        
+        const expiryDate = data.license_expiry ? new Date(data.license_expiry) : null;
+        const daysUntilExpiry = expiryDate ? Math.ceil((expiryDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)) : 0;
+
         let licenseStatus: 'valid' | 'expiring' | 'expired' = 'valid';
-        if (daysUntilExpiry < 0) licenseStatus = 'expired';
+        if (!expiryDate) licenseStatus = 'expired';
+        else if (daysUntilExpiry < 0) licenseStatus = 'expired';
         else if (daysUntilExpiry <= 30) licenseStatus = 'expiring';
 
-        setSearchResult({ ...data, licenseStatus, daysUntilExpiry });
+        setSearchResult({
+          plate_number: data.plate_number,
+          status: data.status,
+          license_expiry_date: data.license_expiry,
+          make: '',
+          model: '',
+          color: '',
+          licenseStatus,
+          daysUntilExpiry
+        });
       } else {
         setSearchError('No vehicle found with this plate number.');
       }
@@ -118,12 +135,12 @@ const Index = () => {
               <Shield className="h-4 w-4" />
               Sidama Region Transport Authority
             </div>
-            
+
             <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-foreground mb-4 animate-slide-up leading-tight">
               Public Vehicle
               <span className="text-primary"> Verification</span>
             </h1>
-            
+
             <p className="text-muted-foreground max-w-xl mx-auto animate-slide-up" style={{ animationDelay: '100ms' }}>
               Verify any registered vehicle's license status instantly. No registration required.
             </p>
@@ -263,7 +280,7 @@ const Index = () => {
           <h2 className="text-xl font-bold text-center text-foreground mb-8">
             System Features
           </h2>
-          
+
           <div className="grid md:grid-cols-3 gap-6">
             <Card variant="default" className="animate-fade-in" style={{ animationDelay: '100ms' }}>
               <CardContent className="p-6 text-center">

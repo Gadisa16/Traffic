@@ -1,5 +1,5 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '@/integrations/supabase/client';
+import * as Api from '@/lib/api';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 export interface Vehicle {
@@ -50,27 +50,7 @@ export function useVehicles(options?: { includeDeleted?: boolean }) {
   return useQuery({
     queryKey: ['vehicles', options],
     queryFn: async () => {
-      let query = supabase
-        .from('vehicles')
-        .select(`
-          *,
-          owners (
-            id,
-            full_name,
-            phone,
-            tin_number,
-            address
-          )
-        `)
-        .order('created_at', { ascending: false });
-
-      if (!options?.includeDeleted) {
-        query = query.neq('status', 'deleted');
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
+      const data = await Api.getVehicles(options?.includeDeleted);
       return data as VehicleWithOwner[];
     },
   });
@@ -80,22 +60,7 @@ export function useDeletedVehicles() {
   return useQuery({
     queryKey: ['vehicles', 'deleted'],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select(`
-          *,
-          owners (
-            id,
-            full_name,
-            phone,
-            tin_number,
-            address
-          )
-        `)
-        .eq('status', 'deleted')
-        .order('deleted_at', { ascending: false });
-
-      if (error) throw error;
+      const data = await Api.getDeletedVehicles();
       return data as VehicleWithOwner[];
     },
   });
@@ -105,22 +70,7 @@ export function useVehicle(id: string) {
   return useQuery({
     queryKey: ['vehicles', id],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select(`
-          *,
-          owners (
-            id,
-            full_name,
-            phone,
-            tin_number,
-            address
-          )
-        `)
-        .eq('id', id)
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await Api.getVehicle(id);
       return data as VehicleWithOwner | null;
     },
     enabled: !!id,
@@ -131,22 +81,7 @@ export function useVehicleByPlate(plateNumber: string) {
   return useQuery({
     queryKey: ['vehicles', 'plate', plateNumber],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .select(`
-          *,
-          owners (
-            id,
-            full_name,
-            phone,
-            tin_number,
-            address
-          )
-        `)
-        .eq('plate_number', plateNumber)
-        .maybeSingle();
-
-      if (error) throw error;
+      const data = await Api.getVehicleByPlate(plateNumber);
       return data as VehicleWithOwner | null;
     },
     enabled: !!plateNumber,
@@ -158,14 +93,7 @@ export function useCreateVehicle() {
 
   return useMutation({
     mutationFn: async (vehicle: Omit<Vehicle, 'id' | 'created_at' | 'updated_at' | 'deleted_at'>) => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .insert(vehicle)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await Api.createVehicle(vehicle);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
@@ -183,15 +111,7 @@ export function useUpdateVehicle() {
 
   return useMutation({
     mutationFn: async ({ id, ...vehicle }: Partial<Vehicle> & { id: string }) => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .update(vehicle)
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await Api.updateVehicle(id, vehicle);
     },
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
@@ -210,18 +130,7 @@ export function useSoftDeleteVehicle() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .update({ 
-          status: 'deleted' as const, 
-          deleted_at: new Date().toISOString() 
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await Api.deleteVehicle(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
@@ -239,18 +148,7 @@ export function useRestoreVehicle() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data, error } = await supabase
-        .from('vehicles')
-        .update({ 
-          status: 'active' as const, 
-          deleted_at: null 
-        })
-        .eq('id', id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
+      return await Api.restoreVehicle(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
@@ -268,12 +166,7 @@ export function usePermanentDeleteVehicle() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const { error } = await supabase
-        .from('vehicles')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      return await Api.purgeVehicle(id);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['vehicles'] });
