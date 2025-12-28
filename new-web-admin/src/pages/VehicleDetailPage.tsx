@@ -177,7 +177,7 @@ export default function VehicleDetailPage() {
                   </div>
                   <div>
                     <p className="font-semibold text-foreground">{vehicle.owners.full_name}</p>
-                    <p className="text-sm text-muted-foreground">TIN: {vehicle.owners.tin_number}</p>
+                    <p className="text-sm text-muted-foreground">TIN: {vehicle.owners.tin_number ?? 'N/A'}</p>
                   </div>
                 </div>
                 <div className="space-y-3 text-sm">
@@ -193,7 +193,7 @@ export default function VehicleDetailPage() {
                   )}
                 </div>
                 <Button variant="outline" size="sm" className="w-full" asChild>
-                  <Link to={`/admin/owners/${vehicle.owners.id}`}>
+                  <Link to={`/admin/owners/${vehicle.owners.id}/edit`}>
                     View Owner Details
                   </Link>
                 </Button>

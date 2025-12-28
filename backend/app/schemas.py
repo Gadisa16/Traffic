@@ -106,6 +106,7 @@ class VehicleCreate(VehicleBase):
     qr_value: Optional[str]
     status: Optional[str]
     owner: Optional[OwnerCreate]
+    owner_id: Optional[int]
     license: Optional[LicenseCreate]
 
 
@@ -114,6 +115,7 @@ class VehicleUpdate(BaseModel):
     qr_value: Optional[str]
     status: Optional[str]
     owner: Optional[OwnerCreate]
+    owner_id: Optional[int]
     license: Optional[LicenseCreate]
     side_number: Optional[SideNumber]
     vehicle_type: Optional[str] = None
@@ -128,6 +130,11 @@ class VehicleOut(VehicleBase):
     qr_value: Optional[str]
     status: Optional[str]
     owner: Optional[OwnerOut]
+    # backward-compat: some frontends expect `owners` key
+    owners: Optional[OwnerOut] = None
+    # convenience fields for license dates (string ISO)
+    license_start_date: Optional[str] = None
+    license_expiry_date: Optional[str] = None
     license: Optional[LicenseOut] = None
     side_number: Optional[str]
     photos: Optional[list[VehiclePhotoOut]] = None

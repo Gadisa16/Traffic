@@ -64,6 +64,30 @@ def _refresh_photo_urls(vehicle: models.Vehicle) -> None:
                 f"Warning: Failed to refresh photo URL for photo {photo.id}: {e}")
 
 
+def _normalize_vehicle(v: models.Vehicle) -> None:
+    """Attach compatibility attributes expected by frontend code.
+
+    - `owners`: alias to `owner` (some clients use plural)
+    - `license_start_date` / `license_expiry_date`: ISO strings extracted from v.license
+    """
+    try:
+        # alias owner -> owners for older frontend expectations
+        setattr(v, 'owners', getattr(v, 'owner', None))
+    except Exception:
+        pass
+
+    try:
+        if getattr(v, 'license', None):
+            if getattr(v.license, 'start_date', None):
+                setattr(v, 'license_start_date',
+                        v.license.start_date.isoformat())
+            if getattr(v.license, 'expiry_date', None):
+                setattr(v, 'license_expiry_date',
+                        v.license.expiry_date.isoformat())
+    except Exception:
+        pass
+
+
 def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
     try:
         if v.license and v.license.expiry_date:
@@ -268,7 +292,11 @@ def list_vehicles(
             qs = qs.filter(models.Vehicle.plate_number.contains(plate))
     if side:
         qs = qs.filter(models.Vehicle.side_number == side)
-    return qs.all()
+    res = qs.all()
+    for v in res:
+        _refresh_photo_urls(v)
+        _normalize_vehicle(v)
+    return res
 
 
 @router.get("/{vehicle_id}", response_model=schemas.VehicleOut)
@@ -281,6 +309,7 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: mo
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     _refresh_photo_urls(v)
+    _normalize_vehicle(v)
     return v
 
 
@@ -294,6 +323,7 @@ def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
     _refresh_photo_urls(v)
+    _normalize_vehicle(v)
     return v
 
 
@@ -306,6 +336,7 @@ def get_by_qr(qr: str, db: Session = Depends(get_db), current_user: models.User 
     ).filter(models.Vehicle.qr_value == qr, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    _normalize_vehicle(v)
     return v
 
 
@@ -318,13 +349,19 @@ def get_by_side(side: str, db: Session = Depends(get_db), current_user: models.U
     ).filter(models.Vehicle.side_number == side, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    _normalize_vehicle(v)
     return v
 
 
 @router.post("/", response_model=schemas.VehicleOut)
 def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
-    # owner
+    # owner: allow linking an existing owner via owner_id or creating a new owner via owner
     owner_obj = None
+    if getattr(payload, 'owner_id', None) is not None:
+        owner_id = payload.owner_id
+    else:
+        owner_id = None
+
     if payload.owner:
         owner_payload = payload.owner
         national_hash = None
@@ -347,7 +384,8 @@ def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db)
         color=getattr(payload, 'color', None),
         year=getattr(payload, 'year', None),
         status=payload.status or models.StatusEnum.active,
-        owner_id=owner_obj.id if owner_obj else None
+        owner_id=owner_obj.id if owner_obj else (
+            owner_id if owner_id is not None else None)
     )
     db.add(v)
     try:
@@ -369,6 +407,7 @@ def create_vehicle(payload: schemas.VehicleCreate, db: Session = Depends(get_db)
         raise HTTPException(
             status_code=400, detail="Vehicle could not be created due to integrity constraints")
     db.refresh(v)
+    _normalize_vehicle(v)
     return v
 
 
@@ -403,7 +442,12 @@ def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session 
         v.year = payload.year
 
     # owner handling: update existing or create new
-    if payload.owner:
+    # owner handling: support linking an existing owner by id, updating existing owner, or creating a new owner
+    if getattr(payload, 'owner_id', None) is not None:
+        # assign existing owner by id
+        v.owner_id = payload.owner_id
+    elif payload.owner:
+        # payload.owner is an OwnerCreate -> either update current owner or create a new one
         if v.owner:
             v.owner.full_name = payload.owner.full_name
             v.owner.phone = payload.owner.phone
@@ -441,6 +485,7 @@ def update_vehicle(vehicle_id: int, payload: schemas.VehicleUpdate, db: Session 
         raise HTTPException(
             status_code=400, detail="Update failed due to integrity constraints (possible duplicate plate)")
     db.refresh(v)
+    _normalize_vehicle(v)
     return v
 
 
@@ -487,6 +532,7 @@ def undelete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: model
     db.add(v)
     db.commit()
     db.refresh(v)
+    _normalize_vehicle(v)
     return v
 
 
@@ -494,6 +540,8 @@ def undelete_vehicle(vehicle_id: int, db: Session = Depends(get_db), user: model
 def list_deleted(db: Session = Depends(get_db), user: models.User = Depends(require_admin)):
     qs = db.query(models.Vehicle).options(joinedload(models.Vehicle.owner), joinedload(
         models.Vehicle.license)).filter(models.Vehicle.is_deleted == 1).all()
+    for v in qs:
+        _normalize_vehicle(v)
     return qs
 
 

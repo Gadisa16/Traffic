@@ -48,9 +48,9 @@ export default function OwnerFormPage() {
       const data = await getOwner(ownerId);
       if (data) {
         setFormData({
-          full_name: data.full_name,
-          phone: data.phone,
-          tin_number: data.tin_number,
+          full_name: data.full_name || '',
+          phone: data.phone || '',
+          tin_number: (data.tin_number as string) || '',
           address: data.address || '',
         });
       }

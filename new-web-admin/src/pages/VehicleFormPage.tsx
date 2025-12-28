@@ -109,9 +109,7 @@ export default function VehicleFormPage() {
         model: formData.model,
         year: Number(formData.year),
         color: formData.color,
-        owner: formData.owner_id && formData.owner_id !== 'none' ? {
-          id: parseInt(formData.owner_id)
-        } : null,
+        owner_id: formData.owner_id && formData.owner_id !== 'none' ? parseInt(formData.owner_id) : undefined,
         license: {
           start_date: formData.license_start_date,
           expiry_date: formData.license_expiry_date,

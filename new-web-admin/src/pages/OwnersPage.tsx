@@ -1,23 +1,23 @@
-import { useState, useMemo } from 'react';
-import { Link } from 'react-router-dom';
 import { AdminLayout } from '@/components/AdminLayout';
-import { PageHeader } from '@/components/PageHeader';
 import { EmptyState } from '@/components/EmptyState';
-import { Card, CardContent } from '@/components/ui/card';
+import { PageHeader } from '@/components/PageHeader';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useOwners } from '@/hooks/useOwners';
-import { 
-  Users, 
-  Plus, 
-  Search, 
-  Eye,
+import {
+  Car,
   Edit,
-  Phone,
+  Eye,
   MapPin,
-  Car
+  Phone,
+  Plus,
+  Search,
+  Users
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 
 export default function OwnersPage() {
   const [searchQuery, setSearchQuery] = useState('');
@@ -30,9 +30,9 @@ export default function OwnersPage() {
       if (searchQuery) {
         const query = searchQuery.toLowerCase();
         const matches = 
-          owner.full_name.toLowerCase().includes(query) ||
-          owner.phone.includes(query) ||
-          owner.tin_number.toLowerCase().includes(query);
+          (owner.full_name || '').toLowerCase().includes(query) ||
+          (owner.phone || '').includes(query) ||
+          ((owner.tin_number || '').toLowerCase().includes(query));
         if (!matches) return false;
       }
       return true;
@@ -102,13 +102,13 @@ export default function OwnersPage() {
                         {owner.full_name}
                       </h3>
                       <p className="text-sm text-muted-foreground">
-                        TIN: {owner.tin_number}
+                        TIN: {owner.tin_number ?? 'N/A'}
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon-sm" asChild>
-                      <Link to={`/admin/owners/${owner.id}`}>
+                      <Link to={`/admin/owners/${owner.id}/edit`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>
