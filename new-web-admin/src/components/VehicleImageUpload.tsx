@@ -3,7 +3,7 @@ import { ImageLightbox } from '@/components/ImageLightbox';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Image as ImageIcon, Loader2, MoreHorizontal, Upload, X } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 
 interface VehicleImage {
@@ -35,26 +35,26 @@ export function VehicleImageUpload({
 }: Readonly<VehicleImageUploadProps>) {
     const baseUrl = (import.meta.env.VITE_API_URL as string | undefined) || 'http://localhost:8000';
 
-    const [images, setImages] = useState<VehicleImage[]>(
-        existingImages.map(img => {
-            console.log('Existing image file_url:', img.file_url);
-            console.log('img:', img);
+    const mapExisting = (imgs: Array<{ id: number; file_url: string; kind?: string }>) =>
+        imgs.map(img => {
             let preview = '';
             if (img.file_url) {
-                if (img.file_url.startsWith('http')) {
-                    preview = img.file_url;
-                } else {
-                    preview = `${baseUrl}${img.file_url}`;
-                }
+                preview = img.file_url.startsWith('http') ? img.file_url : `${baseUrl}${img.file_url}`;
             }
             return {
                 id: img.id,
                 file_url: img.file_url,
                 preview,
                 kind: img.kind,
-            };
-        })
-    );
+            } as VehicleImage;
+        });
+
+    const [images, setImages] = useState<VehicleImage[]>(mapExisting(existingImages));
+
+    // Sync images when parent provides fresh existingImages (e.g. after refetch)
+    useEffect(() => {
+        setImages(mapExisting(existingImages));
+    }, [existingImages, baseUrl]);
     const [uploading, setUploading] = useState(false);
     const [deletingIds, setDeletingIds] = useState<Set<number>>(new Set());
     const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -87,6 +87,9 @@ export function VehicleImageUpload({
         }
 
         if (vehicleId && onUpload) {
+            // Optimistically show previews immediately while upload happens
+            const optimistic = files.map((file) => ({ file, preview: URL.createObjectURL(file) } as VehicleImage));
+            setImages(prev => [...prev, ...optimistic]);
             setUploading(true);
             try {
                 await onUpload(files);
@@ -94,6 +97,8 @@ export function VehicleImageUpload({
             } catch (error) {
                 console.error('Upload error:', error);
                 toast.error('Failed to upload images');
+                // remove optimistic previews on failure
+                setImages(prev => prev.filter(img => !(img.file && optimistic.some(o => o.preview === img.preview))));
             } finally {
                 setUploading(false);
             }

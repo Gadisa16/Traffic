@@ -228,3 +228,7 @@
 .animate-pulse-ring {
   animation: pulse-ring 2s ease-in-out infinite;
 }
+
+.custom_lightbox {
+  margin-top: 0 !important;
+}

@@ -160,7 +160,7 @@ export function ImageLightbox({
 
     return (
         <div
-            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col pt-0 mt-0"
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-0 mt-0 custom_lightbox"
             onClick={(e) => e.target === e.currentTarget && onClose()}
         >
             {/* Top Bar */}
@@ -207,43 +207,42 @@ export function ImageLightbox({
                 </div>
             </div>
 
-            {/* Main Image Area */}
+            {/* Main Image Area - Carousel */}
             <div
                 ref={containerRef}
-                className="flex-1 flex items-center justify-center relative overflow-hidden"
+                className="w-full max-w-5xl mx-auto relative overflow-hidden touch-pan-y"
                 onWheel={handleWheel}
-                onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
-                onMouseMove={(e) => doDrag(e.clientX, e.clientY)}
-                onMouseUp={endDrag}
-                onMouseLeave={endDrag}
-                onTouchStart={(e) => e.touches.length === 1 && startDrag(e.touches[0].clientX, e.touches[0].clientY)}
-                onTouchMove={(e) => e.touches.length === 1 && doDrag(e.touches[0].clientX, e.touches[0].clientY)}
-                onTouchEnd={endDrag}
             >
-                <img
-                    ref={imageRef}
-                    src={currentImage.preview}
-                    alt={currentImage.alt || `Image ${currentIndex + 1}`}
-                    className={cn(
-                        "select-none object-contain transition-all duration-200",
-                        isTransitioning && "opacity-70",
-                        zoom > 1 && (isDragging ? "cursor-grabbing" : "cursor-grab")
-                    )}
-                    style={{
-                        transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
-                        maxWidth: '95vw',
-                        maxHeight: '95vh',
-                    }}
-                    draggable={false}
-                    crossOrigin="anonymous"
-                    onError={(e) => {
-                        console.error('Lightbox image load error:', currentImage.preview);
-                        (e.target as HTMLImageElement).src = '/placeholder.svg';
-                    }}
-                    onLoad={() => {
-                        console.log('Lightbox image loaded:', currentImage.preview);
-                    }}
-                />
+                <div
+                    className="flex transition-transform duration-300 ease-in-out"
+                    style={{ transform: `translateX(-${currentIndex * 100}%)` }}
+                    onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
+                    onMouseMove={(e) => doDrag(e.clientX, e.clientY)}
+                    onMouseUp={endDrag}
+                    onMouseLeave={endDrag}
+                    onTouchStart={(e) => e.touches.length === 1 && startDrag(e.touches[0].clientX, e.touches[0].clientY)}
+                    onTouchMove={(e) => e.touches.length === 1 && doDrag(e.touches[0].clientX, e.touches[0].clientY)}
+                    onTouchEnd={endDrag}
+                >
+                    {images.map((img, idx) => (
+                        <div key={idx} className="flex-shrink-0 w-full flex items-center justify-center p-6">
+                            <img
+                                src={img.preview}
+                                alt={img.alt || `Image ${idx + 1}`}
+                                className={cn(
+                                    "max-h-[80vh] max-w-full rounded-md shadow-lg object-contain",
+                                    isTransitioning && "opacity-70"
+                                )}
+                                style={{ transform: zoom > 1 ? `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)` : undefined }}
+                                draggable={false}
+                                crossOrigin="anonymous"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                }}
+                            />
+                        </div>
+                    ))}
+                </div>
             </div>
 
             {/* Navigation Arrows */}
