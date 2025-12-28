@@ -37,6 +37,7 @@ export default function VehicleDetailPage() {
       await softDeleteMutation.mutateAsync(vehicle.id.toString());
       navigate('/admin/vehicles');
     } catch (err) {
+      console.error('Failed to delete vehicle:', err);
       toast.error('Failed to delete vehicle');
     }
   };
@@ -57,6 +58,17 @@ export default function VehicleDetailPage() {
 
   const licenseStatus = vehicle.license?.expiry_date ? getLicenseStatus(vehicle.license.expiry_date) : 'expired';
   const daysUntilExpiry = vehicle.license?.expiry_date ? getDaysUntilExpiry(vehicle.license.expiry_date) : 0;
+
+  async function refetchVehicle() {
+    // Refetch vehicle data by invalidating the query cache
+    // or by calling the refetch method if available from useVehicle
+    if (typeof (useVehicle(id || '') as any).refetch === 'function') {
+      await (useVehicle(id || '') as any).refetch();
+    } else {
+      // fallback: reload the page if refetch is not available
+      globalThis.location.reload();
+    }
+  }
 
   return (
     <AdminLayout>
@@ -225,10 +237,11 @@ export default function VehicleDetailPage() {
               existingImages={vehicle.photos || []}
               onUpload={async (files) => {
                 await Api.uploadVehiclePhotos(vehicle.id.toString(), files);
-                window.location.reload();
+                await refetchVehicle();
               }}
               onDelete={async (photoId) => {
                 await Api.deleteVehiclePhoto(vehicle.id.toString(), photoId.toString());
+                await refetchVehicle();
               }}
               maxImages={10}
             />

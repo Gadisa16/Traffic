@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VehicleImageUpload } from '@/components/VehicleImageUpload';
 import { useOwners } from '@/hooks/useOwners';
 import { useCreateVehicle, useUpdateVehicle, useVehicle } from '@/hooks/useVehicles';
-import { ArrowLeft, Car, Plus, Save, User } from 'lucide-react';
+import * as Api from '@/lib/api';
+import { ArrowLeft, Car, Image as ImageIcon, Plus, Save, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -50,7 +52,7 @@ export default function VehicleFormPage() {
   });
 
 
-  const { data: vehicleData } = useVehicle(id || '');
+  const { data: vehicleData, refetch: refetchVehicle } = useVehicle(id || '');
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
 
@@ -318,11 +320,11 @@ export default function VehicleFormPage() {
                 existingImages={vehicleData?.photos || []}
                 onUpload={async (files) => {
                   await Api.uploadVehiclePhotos(id, files);
-                  // Refetch vehicle data to get updated photos
-                  window.location.reload();
+                  await refetchVehicle();
                 }}
                 onDelete={async (photoId) => {
                   await Api.deleteVehiclePhoto(id, photoId.toString());
+                  await refetchVehicle();
                 }}
                 maxImages={10}
               />

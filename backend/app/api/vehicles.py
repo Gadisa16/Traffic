@@ -15,7 +15,7 @@ import datetime
 
 import qrcode
 
-from ..storage import upload_bytes
+from ..storage import upload_bytes, create_signed_url
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
@@ -31,6 +31,25 @@ def _mask_phone(phone: Optional[str]) -> Optional[str]:
     if len(p) <= 3:
         return "***"
     return f"***{p[-3:]}"
+
+
+def _refresh_photo_urls(vehicle: models.Vehicle) -> None:
+    """Refresh signed URLs for vehicle photos in-place."""
+    if not vehicle.photos:
+        return
+    for photo in vehicle.photos:
+        try:
+            # Generate fresh signed URL from stored path
+            fresh_url = create_signed_url(
+                bucket=photo.file_bucket,
+                path=photo.file_path,
+                expires_in=int(os.getenv('SUPABASE_SIGNED_URL_TTL_SECONDS', '3600'))
+            )
+            photo.file_url = fresh_url
+        except Exception as e:
+            # If refresh fails, keep the old URL (might be expired but better than nothing)
+            print(f"Warning: Failed to refresh photo URL for photo {photo.id}: {e}")
+            pass
 
 
 def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
@@ -239,6 +258,7 @@ def get_vehicle(vehicle_id: int, db: Session = Depends(get_db), current_user: mo
     ).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    _refresh_photo_urls(v)
     return v
 
 
@@ -251,6 +271,7 @@ def get_by_plate(plate: str, db: Session = Depends(get_db), current_user: models
     ).filter(models.Vehicle.plate_number == plate, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
+    _refresh_photo_urls(v)
     return v
 
 

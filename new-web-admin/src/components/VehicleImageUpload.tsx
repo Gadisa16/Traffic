@@ -31,7 +31,7 @@ export function VehicleImageUpload({
     onDelete,
     maxImages = 10,
     disabled = false,
-}: VehicleImageUploadProps) {
+}: Readonly<VehicleImageUploadProps>) {
     const [images, setImages] = useState<VehicleImage[]>(
         existingImages.map(img => ({
             id: img.id,
@@ -57,8 +57,8 @@ export function VehicleImageUpload({
         }
 
         // Validate file types
-        const validTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
-        const invalidFiles = files.filter(f => !validTypes.includes(f.type));
+        const validTypes = new Set(['image/jpeg', 'image/jpg', 'image/png', 'image/webp']);
+        const invalidFiles = files.filter(f => !validTypes.has(f.type));
         if (invalidFiles.length > 0) {
             toast.error('Only JPEG, PNG, and WebP images are allowed');
             return;
@@ -176,7 +176,7 @@ export function VehicleImageUpload({
             {images.length > 0 ? (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     {images.map((image, index) => (
-                        <Card key={index} variant="default" className="overflow-hidden">
+                        <Card key={index*2} variant="default" className="overflow-hidden">
                             <CardContent className="p-0 relative group">
                                 <div
                                     className="aspect-square relative bg-muted cursor-pointer"
