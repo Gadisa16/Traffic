@@ -193,9 +193,9 @@ export function VehicleImageUpload({
                         <Card 
                             key={image.id || index} 
                             variant="elevated" 
-                            className="w-20 h-20 overflow-hidden flex-shrink-0 group relative hover:w-24 hover:h-24 transition-all duration-200"
+                            className="w-20 h-20 overflow-hidden flex-shrink-0 group relative hover:w-21 hover:h-21 transition-all duration-200"
                         >
-                            <CardContent className="p-0 relative cursor-pointer" onClick={() => {
+                            <CardContent className="p-0 relative cursor-pointer h-full" onClick={() => {
                                 setLightboxIndex(index);
                                 setLightboxOpen(true);
                             }}>
@@ -218,12 +218,12 @@ export function VehicleImageUpload({
                                 </div>
                                 
                                 {/* Delete Button */}
-                                <div className="absolute -top-1 -right-1 bg-destructive/90 hover:bg-destructive text-destructive-foreground p-1 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all">
+                                <div className="absolute top-[-1px] right-[-1px] text-destructive-foreground shadow-lg group-hover:opacity-100 transition-all">
                                     <Button
                                         type="button"
                                         variant="ghost"
                                         size="icon-sm"
-                                        className="h-6 w-6 p-0 m-0"
+                                        className="h-6 w-6 p-0 m-0 bg-[#00000082]"
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             handleDelete(index, image.id);
