@@ -1,16 +1,16 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
 import { AdminLayout } from '@/components/AdminLayout';
 import { PageHeader } from '@/components/PageHeader';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
+import { Textarea } from '@/components/ui/textarea';
+import { createOwner, getOwner, updateOwner } from '@/lib/api';
+import { ArrowLeft, FileText, MapPin, Phone, Save, User } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
-import { User, Save, ArrowLeft, Phone, MapPin, FileText } from 'lucide-react';
 import { z } from 'zod';
 
 const ownerSchema = z.object({
@@ -45,13 +45,7 @@ export default function OwnerFormPage() {
 
   const fetchOwner = async (ownerId: string) => {
     try {
-      const { data, error } = await supabase
-        .from('owners')
-        .select('*')
-        .eq('id', ownerId)
-        .single();
-
-      if (error) throw error;
+      const data = await getOwner(ownerId);
       if (data) {
         setFormData({
           full_name: data.full_name,
@@ -101,12 +95,10 @@ export default function OwnerFormPage() {
       };
 
       if (isEditing && id) {
-        const { error } = await supabase.from('owners').update(payload).eq('id', id);
-        if (error) throw error;
+        await updateOwner(id, payload);
         toast.success('Owner updated successfully');
       } else {
-        const { error } = await supabase.from('owners').insert(payload);
-        if (error) throw error;
+        await createOwner(payload);
         toast.success('Owner added successfully');
       }
 
