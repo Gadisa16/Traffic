@@ -28,6 +28,7 @@ export interface Vehicle {
   license_start_date: string;
   license?: License;
   photos?: VehiclePhoto[];
+  qr_value?: string;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;

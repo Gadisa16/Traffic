@@ -34,22 +34,34 @@ def _mask_phone(phone: Optional[str]) -> Optional[str]:
 
 
 def _refresh_photo_urls(vehicle: models.Vehicle) -> None:
-    """Refresh signed URLs for vehicle photos in-place."""
+    """Refresh URLs for vehicle photos in-place."""
     if not vehicle.photos:
         return
+
+    from ..storage import create_public_url
+
     for photo in vehicle.photos:
         try:
-            # Generate fresh signed URL from stored path
-            fresh_url = create_signed_url(
-                bucket=photo.file_bucket,
-                path=photo.file_path,
-                expires_in=int(os.getenv('SUPABASE_SIGNED_URL_TTL_SECONDS', '3600'))
-            )
+            # Treat public buckets (vehicle-photos and qr-codes) the same and
+            # return the public URL. Other buckets remain signed.
+            if photo.file_bucket in ('vehicle-photos', 'qr-codes'):
+                fresh_url = create_public_url(
+                    bucket=photo.file_bucket,
+                    path=photo.file_path
+                )
+            else:
+                # Use signed URL for private buckets
+                fresh_url = create_signed_url(
+                    bucket=photo.file_bucket,
+                    path=photo.file_path,
+                    expires_in=int(
+                        os.getenv('SUPABASE_SIGNED_URL_TTL_SECONDS', '3600'))
+                )
             photo.file_url = fresh_url
         except Exception as e:
-            # If refresh fails, keep the old URL (might be expired but better than nothing)
-            print(f"Warning: Failed to refresh photo URL for photo {photo.id}: {e}")
-            pass
+            # If refresh fails, keep the old URL
+            print(
+                f"Warning: Failed to refresh photo URL for photo {photo.id}: {e}")
 
 
 def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
@@ -63,7 +75,8 @@ def _license_expiry_str(v: models.Vehicle) -> Optional[str]:
 
 @router.get("/verify", response_model=schemas.VehicleVerifyOut)
 def verify_vehicle(
-    code: str = Query(..., description="QR value, plate number, or side number"),
+    code: str = Query(...,
+                      description="QR value, plate number, or side number"),
     db: Session = Depends(get_db),
     user: Optional[models.User] = Depends(get_current_user_optional),
 ):
@@ -104,7 +117,8 @@ def stats_summary(db: Session = Depends(get_db)):
     today = date.today()
     soon = today + timedelta(days=30)
 
-    vehicles = db.query(models.Vehicle).options(joinedload(models.Vehicle.license)).filter(models.Vehicle.is_deleted == 0).all()
+    vehicles = db.query(models.Vehicle).options(joinedload(
+        models.Vehicle.license)).filter(models.Vehicle.is_deleted == 0).all()
 
     total = 0
     valid = 0
@@ -138,7 +152,8 @@ def stats_summary(db: Session = Depends(get_db)):
 def get_qr_png(qr_value: str):
     # Legacy endpoint: QR images are now stored in external storage.
     # Return 404 so clients use the URL returned by POST /vehicles/{id}/qr.
-    raise HTTPException(status_code=404, detail="QR image not served here; use qr_png_url from /vehicles/{id}/qr")
+    raise HTTPException(
+        status_code=404, detail="QR image not served here; use qr_png_url from /vehicles/{id}/qr")
 
 
 @router.post("/{vehicle_id}/qr", response_model=schemas.VehicleQrOut)
@@ -147,7 +162,8 @@ def generate_vehicle_qr(
     db: Session = Depends(get_db),
     user: models.User = Depends(require_admin),
 ):
-    v = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
+    v = db.query(models.Vehicle).filter(models.Vehicle.id ==
+                                        vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail="Vehicle not found")
 
@@ -158,7 +174,8 @@ def generate_vehicle_qr(
             db.commit()
         except IntegrityError:
             db.rollback()
-            raise HTTPException(status_code=400, detail="Failed to generate QR value")
+            raise HTTPException(
+                status_code=400, detail="Failed to generate QR value")
         db.refresh(v)
 
     img = qrcode.make(v.qr_value)
@@ -172,10 +189,14 @@ def generate_vehicle_qr(
         content_type='image/png',
     )
 
+    # include generated timestamp so clients can display when the QR was created
+    generated_at = datetime.datetime.utcnow().isoformat()
+
     return {
         "vehicle_id": v.id,
         "qr_value": v.qr_value,
         "qr_png_url": signed_url,
+        "qr_generated_at": generated_at,
     }
 
 
@@ -187,7 +208,8 @@ def upload_vehicle_photos(
     db: Session = Depends(get_db),
     user: models.User = Depends(require_admin),
 ):
-    v = db.query(models.Vehicle).filter(models.Vehicle.id == vehicle_id, models.Vehicle.is_deleted == 0).first()
+    v = db.query(models.Vehicle).filter(models.Vehicle.id ==
+                                        vehicle_id, models.Vehicle.is_deleted == 0).first()
     if not v:
         raise HTTPException(status_code=404, detail='Vehicle not found')
 
@@ -435,7 +457,7 @@ def delete_vehicle_photo(
     ).first()
     if not photo:
         raise HTTPException(status_code=404, detail='Photo not found')
-    
+
     db.delete(photo)
     db.commit()
     return {'message': 'Photo deleted successfully'}

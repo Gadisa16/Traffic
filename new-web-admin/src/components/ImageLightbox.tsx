@@ -1,6 +1,15 @@
+// ImageLightbox.tsx
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { ChevronLeft, ChevronRight, RotateCw, X, ZoomIn, ZoomOut } from 'lucide-react';
+import {
+    ChevronLeft,
+    ChevronRight,
+    Maximize2,
+    RotateCw,
+    X,
+    ZoomIn,
+    ZoomOut,
+} from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 interface ImageLightboxProps {
@@ -10,116 +19,95 @@ interface ImageLightboxProps {
     onClose: () => void;
 }
 
-export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose }: ImageLightboxProps) {
+export function ImageLightbox({
+    images,
+    initialIndex = 0,
+    isOpen,
+    onClose,
+}: ImageLightboxProps) {
     const [currentIndex, setCurrentIndex] = useState(initialIndex);
     const [zoom, setZoom] = useState(1);
     const [position, setPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
     const [rotation, setRotation] = useState(0);
+    const [isTransitioning, setIsTransitioning] = useState(false);
+
     const imageRef = useRef<HTMLImageElement>(null);
     const containerRef = useRef<HTMLDivElement>(null);
 
+    // Reset state when opening or changing image
     useEffect(() => {
-        setCurrentIndex(initialIndex);
-    }, [initialIndex]);
-
-    useEffect(() => {
-        if (!isOpen) {
+        if (isOpen) {
+            setCurrentIndex(initialIndex);
             setZoom(1);
             setPosition({ x: 0, y: 0 });
             setRotation(0);
         }
-    }, [isOpen]);
+    }, [isOpen, initialIndex]);
+
+    const resetView = useCallback(() => {
+        setZoom(1);
+        setPosition({ x: 0, y: 0 });
+        setRotation(0);
+    }, []);
+
+    const goToIndex = useCallback((index: number) => {
+        setIsTransitioning(true);
+        setCurrentIndex(index);
+        resetView();
+        setTimeout(() => setIsTransitioning(false), 300);
+    }, [resetView]);
 
     const handlePrevious = useCallback(() => {
-        setCurrentIndex((prev) => (prev > 0 ? prev - 1 : images.length - 1));
-        setZoom(1);
-        setPosition({ x: 0, y: 0 });
-        setRotation(0);
-    }, [images.length]);
+        goToIndex(currentIndex > 0 ? currentIndex - 1 : images.length - 1);
+    }, [currentIndex, images.length, goToIndex]);
 
     const handleNext = useCallback(() => {
-        setCurrentIndex((prev) => (prev < images.length - 1 ? prev + 1 : 0));
-        setZoom(1);
-        setPosition({ x: 0, y: 0 });
-        setRotation(0);
-    }, [images.length]);
+        goToIndex(currentIndex < images.length - 1 ? currentIndex + 1 : 0);
+    }, [currentIndex, images.length, goToIndex]);
 
-    const handleZoomIn = () => {
-        setZoom((prev) => Math.min(prev + 0.5, 5));
-    };
-
+    const handleZoomIn = () => setZoom(prev => Math.min(prev + 0.5, 6));
     const handleZoomOut = () => {
-        setZoom((prev) => {
+        setZoom(prev => {
             const newZoom = Math.max(prev - 0.5, 1);
-            if (newZoom === 1) {
-                setPosition({ x: 0, y: 0 });
-            }
+            if (newZoom === 1) resetView();
             return newZoom;
         });
     };
 
-    const handleRotate = () => {
-        setRotation((prev) => (prev + 90) % 360);
-    };
+    const handleRotate = () => setRotation(prev => (prev + 90) % 360);
 
+    const handleFitToScreen = () => resetView();
+
+    // Wheel zoom
     const handleWheel = (e: React.WheelEvent) => {
         e.preventDefault();
-        if (e.deltaY < 0) {
-            handleZoomIn();
-        } else {
-            handleZoomOut();
-        }
+        e.deltaY < 0 ? handleZoomIn() : handleZoomOut();
     };
 
-    const handleMouseDown = (e: React.MouseEvent) => {
-        if (zoom > 1) {
-            setIsDragging(true);
-            setDragStart({ x: e.clientX - position.x, y: e.clientY - position.y });
-        }
+    // Drag handlers
+    const startDrag = (clientX: number, clientY: number) => {
+        if (zoom <= 1) return;
+        setIsDragging(true);
+        setDragStart({ x: clientX - position.x, y: clientY - position.y });
     };
 
-    const handleMouseMove = (e: React.MouseEvent) => {
-        if (isDragging && zoom > 1) {
-            setPosition({
-                x: e.clientX - dragStart.x,
-                y: e.clientY - dragStart.y,
-            });
-        }
+    const doDrag = (clientX: number, clientY: number) => {
+        if (!isDragging || zoom <= 1) return;
+        setPosition({
+            x: clientX - dragStart.x,
+            y: clientY - dragStart.y,
+        });
     };
 
-    const handleMouseUp = () => {
-        setIsDragging(false);
-    };
+    const endDrag = () => setIsDragging(false);
 
-    const handleTouchStart = (e: React.TouchEvent) => {
-        if (e.touches.length === 1 && zoom > 1) {
-            setIsDragging(true);
-            setDragStart({
-                x: e.touches[0].clientX - position.x,
-                y: e.touches[0].clientY - position.y,
-            });
-        }
-    };
-
-    const handleTouchMove = (e: React.TouchEvent) => {
-        if (isDragging && e.touches.length === 1 && zoom > 1) {
-            setPosition({
-                x: e.touches[0].clientX - dragStart.x,
-                y: e.touches[0].clientY - dragStart.y,
-            });
-        }
-    };
-
-    const handleTouchEnd = () => {
-        setIsDragging(false);
-    };
-
+    // Keyboard navigation
     useEffect(() => {
-        const handleKeyDown = (e: KeyboardEvent) => {
-            if (!isOpen) return;
+        if (!isOpen) return;
 
+        const handleKey = (e: KeyboardEvent) => {
             switch (e.key) {
                 case 'Escape':
                     onClose();
@@ -132,11 +120,16 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose }: Ima
                     break;
                 case '+':
                 case '=':
+                    e.preventDefault();
                     handleZoomIn();
                     break;
                 case '-':
-                case '_':
+                    e.preventDefault();
                     handleZoomOut();
+                    break;
+                case '0':
+                    e.preventDefault();
+                    handleFitToScreen();
                     break;
                 case 'r':
                 case 'R':
@@ -145,10 +138,11 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose }: Ima
             }
         };
 
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        window.addEventListener('keydown', handleKey);
+        return () => window.removeEventListener('keydown', handleKey);
     }, [isOpen, onClose, handlePrevious, handleNext]);
 
+    // Lock scroll when open
     useEffect(() => {
         if (isOpen) {
             document.body.style.overflow = 'hidden';
@@ -166,70 +160,99 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose }: Ima
 
     return (
         <div
-            className="fixed inset-0 z-50 bg-black/95 flex items-center justify-center"
-            onClick={(e) => {
-                if (e.target === e.currentTarget) onClose();
-            }}
+            className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col pt-0 mt-0"
+            onClick={(e) => e.target === e.currentTarget && onClose()}
         >
-            {/* Close Button */}
-            <Button
-                variant="ghost"
-                size="icon"
-                className="absolute top-4 right-4 z-10 text-white hover:bg-white/20"
-                onClick={onClose}
-            >
-                <X className="h-6 w-6" />
-            </Button>
-
-            {/* Zoom Controls */}
-            <div className="absolute top-4 left-4 z-10 flex gap-2">
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-white hover:bg-white/20"
-                    onClick={handleZoomOut}
-                    disabled={zoom <= 1}
-                >
-                    <ZoomOut className="h-5 w-5" />
-                </Button>
-                <div className="flex items-center justify-center bg-black/50 text-white px-3 rounded-md min-w-[60px]">
-                    <span className="text-sm font-medium">{Math.round(zoom * 100)}%</span>
+            {/* Top Bar */}
+            <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-4 pointer-events-none">
+                <div className="flex items-center gap-3 pointer-events-auto">
+                    {/* Zoom & Controls */}
+                    <div className="flex items-center gap-2 bg-black/60 backdrop-blur-sm rounded-full px-3 py-1.5">
+                        <Button variant="ghost" size="icon-sm" onClick={handleZoomOut} disabled={zoom <= 1}>
+                            <ZoomOut className="h-4 w-4" />
+                        </Button>
+                        <span className="text-sm font-medium text-white min-w-[48px] text-center">
+                            {Math.round(zoom * 100)}%
+                        </span>
+                        <Button variant="ghost" size="icon-sm" onClick={handleZoomIn} disabled={zoom >= 6}>
+                            <ZoomIn className="h-4 w-4" />
+                        </Button>
+                        <div className="w-px h-5 bg-white/30 mx-1" />
+                        <Button variant="ghost" size="icon-sm" onClick={handleRotate}>
+                            <RotateCw className="h-4 w-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon-sm" onClick={handleFitToScreen}>
+                            <Maximize2 className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </div>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-white hover:bg-white/20"
-                    onClick={handleZoomIn}
-                    disabled={zoom >= 5}
-                >
-                    <ZoomIn className="h-5 w-5" />
-                </Button>
-                <Button
-                    variant="ghost"
-                    size="icon"
-                    className="text-white hover:bg-white/20"
-                    onClick={handleRotate}
-                >
-                    <RotateCw className="h-5 w-5" />
-                </Button>
+
+                <div className="flex items-center gap-4 pointer-events-auto">
+                    {/* Image Counter */}
+                    {images.length > 1 && (
+                        <div className="bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-full text-sm font-medium">
+                            {currentIndex + 1} / {images.length}
+                        </div>
+                    )}
+
+                    {/* Close Button */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        className="text-white hover:bg-white/20"
+                        onClick={onClose}
+                    >
+                        <X className="h-6 w-6" />
+                    </Button>
+                </div>
             </div>
 
-            {/* Image Counter */}
-            {images.length > 1 && (
-                <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 bg-black/50 text-white px-4 py-2 rounded-md">
-                    <span className="text-sm font-medium">
-                        {currentIndex + 1} / {images.length}
-                    </span>
-                </div>
-            )}
+            {/* Main Image Area */}
+            <div
+                ref={containerRef}
+                className="flex-1 flex items-center justify-center relative overflow-hidden"
+                onWheel={handleWheel}
+                onMouseDown={(e) => startDrag(e.clientX, e.clientY)}
+                onMouseMove={(e) => doDrag(e.clientX, e.clientY)}
+                onMouseUp={endDrag}
+                onMouseLeave={endDrag}
+                onTouchStart={(e) => e.touches.length === 1 && startDrag(e.touches[0].clientX, e.touches[0].clientY)}
+                onTouchMove={(e) => e.touches.length === 1 && doDrag(e.touches[0].clientX, e.touches[0].clientY)}
+                onTouchEnd={endDrag}
+            >
+                <img
+                    ref={imageRef}
+                    src={currentImage.preview}
+                    alt={currentImage.alt || `Image ${currentIndex + 1}`}
+                    className={cn(
+                        "select-none object-contain transition-all duration-200",
+                        isTransitioning && "opacity-70",
+                        zoom > 1 && (isDragging ? "cursor-grabbing" : "cursor-grab")
+                    )}
+                    style={{
+                        transform: `translate(${position.x}px, ${position.y}px) scale(${zoom}) rotate(${rotation}deg)`,
+                        maxWidth: '95vw',
+                        maxHeight: '95vh',
+                    }}
+                    draggable={false}
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                        console.error('Lightbox image load error:', currentImage.preview);
+                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                    }}
+                    onLoad={() => {
+                        console.log('Lightbox image loaded:', currentImage.preview);
+                    }}
+                />
+            </div>
 
-            {/* Navigation Buttons */}
+            {/* Navigation Arrows */}
             {images.length > 1 && (
                 <>
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20 h-12 w-12"
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm h-14 w-14 rounded-full"
                         onClick={handlePrevious}
                     >
                         <ChevronLeft className="h-8 w-8" />
@@ -237,7 +260,7 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose }: Ima
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white hover:bg-white/20 h-12 w-12"
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 text-white bg-black/40 hover:bg-black/60 backdrop-blur-sm h-14 w-14 rounded-full"
                         onClick={handleNext}
                     >
                         <ChevronRight className="h-8 w-8" />
@@ -245,78 +268,38 @@ export function ImageLightbox({ images, initialIndex = 0, isOpen, onClose }: Ima
                 </>
             )}
 
-            {/* Main Image Container */}
-            <div
-                ref={containerRef}
-                className="relative w-full h-full flex items-center justify-center overflow-hidden"
-                onWheel={handleWheel}
-                onMouseDown={handleMouseDown}
-                onMouseMove={handleMouseMove}
-                onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
-                onTouchStart={handleTouchStart}
-                onTouchMove={handleTouchMove}
-                onTouchEnd={handleTouchEnd}
-            >
-                <img
-                    ref={imageRef}
-                    src={currentImage.preview}
-                    alt={currentImage.alt || `Image ${currentIndex + 1}`}
-                    className={cn(
-                        "max-w-[90vw] max-h-[90vh] object-contain transition-transform",
-                        zoom > 1 && isDragging ? "cursor-grabbing" : zoom > 1 ? "cursor-grab" : "cursor-default"
-                    )}
-                    style={{
-                        transform: `scale(${zoom}) translate(${position.x / zoom}px, ${position.y / zoom}px) rotate(${rotation}deg)`,
-                        transformOrigin: 'center center',
-                    }}
-                    draggable={false}
-                    onError={(e) => {
-                        const target = e.target as HTMLImageElement;
-                        target.src = '/placeholder.svg';
-                    }}
-                />
-            </div>
-
             {/* Thumbnail Strip */}
             {images.length > 1 && (
-                <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2 bg-black/50 p-3 rounded-lg max-w-[90vw] overflow-x-auto">
-                    {images.map((image, index) => (
-                        <button
-                            key={index}
-                            onClick={() => {
-                                setCurrentIndex(index);
-                                setZoom(1);
-                                setPosition({ x: 0, y: 0 });
-                                setRotation(0);
-                            }}
-                            className={cn(
-                                "flex-shrink-0 w-16 h-16 rounded-md overflow-hidden border-2 transition-all",
-                                index === currentIndex
-                                    ? "border-white scale-110"
-                                    : "border-transparent opacity-60 hover:opacity-100 hover:border-white/50"
-                            )}
-                        >
-                            <img
-                                src={image.preview}
-                                alt={`Thumbnail ${index + 1}`}
-                                className="w-full h-full object-cover"
-                                onError={(e) => {
-                                    const target = e.target as HTMLImageElement;
-                                    target.src = '/placeholder.svg';
-                                }}
-                            />
-                        </button>
-                    ))}
+                <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-10">
+                    <div className="bg-black/60 backdrop-blur-md rounded-xl p-3 flex gap-2 max-w-[90vw] overflow-x-auto scrollbar-thin scrollbar-thumb-white/30">
+                        {images.map((image, index) => (
+                            <button
+                                key={index}
+                                onClick={() => goToIndex(index)}
+                                className={cn(
+                                    "flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-3 transition-all duration-200",
+                                    index === currentIndex
+                                        ? "border-white shadow-lg scale-105"
+                                        : "border-transparent opacity-50 hover:opacity-90 hover:border-white/40"
+                                )}
+                            >
+                                <img
+                                    src={image.preview}
+                                    alt={`Thumbnail ${index + 1}`}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                        (e.target as HTMLImageElement).src = '/placeholder.svg';
+                                    }}
+                                />
+                            </button>
+                        ))}
+                    </div>
                 </div>
             )}
 
-            {/* Keyboard Hints */}
-            <div className="absolute bottom-4 right-4 z-10 bg-black/50 text-white text-xs px-3 py-2 rounded-md space-y-1">
-                <div>ESC: Close</div>
-                <div>← →: Navigate</div>
-                <div>+/-: Zoom</div>
-                <div>R: Rotate</div>
+            {/* Keyboard Hint (optional - can remove if too much) */}
+            <div className="absolute bottom-4 left-4 z-10 text-white/60 text-xs bg-black/40 backdrop-blur px-3 py-2 rounded-lg hidden md:block">
+                ←→ Navigate • +/- Zoom • 0 Reset • R Rotate • ESC Close
             </div>
         </div>
     );

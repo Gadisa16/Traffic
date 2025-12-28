@@ -213,3 +213,8 @@ export async function uploadVehiclePhotos(vehicleId: string, files: File[], kind
 export async function deleteVehiclePhoto(vehicleId: string, photoId: string): Promise<any> {
     return fetchJson(`/vehicles/${vehicleId}/photos/${photoId}`, { method: 'DELETE' });
 }
+
+// Vehicle QR Code API methods
+export async function generateVehicleQR(vehicleId: string): Promise<{ vehicle_id: number; qr_value: string; qr_png_url: string }> {
+    return fetchJson(`/vehicles/${vehicleId}/qr`, { method: 'POST' });
+}

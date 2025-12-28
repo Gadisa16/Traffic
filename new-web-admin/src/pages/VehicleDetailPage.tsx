@@ -2,6 +2,7 @@ import { AdminLayout } from '@/components/AdminLayout';
 import { LicenseStatusBadge } from '@/components/LicenseStatusBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { VehicleImageUpload } from '@/components/VehicleImageUpload';
+import { VehicleQRCode } from '@/components/VehicleQRCode';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -18,7 +19,6 @@ import {
   Image as ImageIcon,
   MapPin,
   Phone,
-  QrCode,
   Trash2, User
 } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -27,7 +27,7 @@ import { toast } from 'sonner';
 export default function VehicleDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const { data: vehicle, isLoading } = useVehicle(id || '');
+  const { data: vehicle, isLoading, refetch } = useVehicle(id || '');
   const softDeleteMutation = useSoftDeleteVehicle();
 
   const handleDelete = async () => {
@@ -58,17 +58,6 @@ export default function VehicleDetailPage() {
 
   const licenseStatus = vehicle.license?.expiry_date ? getLicenseStatus(vehicle.license.expiry_date) : 'expired';
   const daysUntilExpiry = vehicle.license?.expiry_date ? getDaysUntilExpiry(vehicle.license.expiry_date) : 0;
-
-  async function refetchVehicle() {
-    // Refetch vehicle data by invalidating the query cache
-    // or by calling the refetch method if available from useVehicle
-    if (typeof (useVehicle(id || '') as any).refetch === 'function') {
-      await (useVehicle(id || '') as any).refetch();
-    } else {
-      // fallback: reload the page if refetch is not available
-      globalThis.location.reload();
-    }
-  }
 
   return (
     <AdminLayout>
@@ -237,39 +226,26 @@ export default function VehicleDetailPage() {
               existingImages={vehicle.photos || []}
               onUpload={async (files) => {
                 await Api.uploadVehiclePhotos(vehicle.id.toString(), files);
-                await refetchVehicle();
+                await refetch();
               }}
               onDelete={async (photoId) => {
                 await Api.deleteVehiclePhoto(vehicle.id.toString(), photoId.toString());
-                await refetchVehicle();
+                await refetch();
               }}
               maxImages={10}
             />
           </CardContent>
         </Card>
 
-        {/* QR Code Placeholder */}
-        <Card variant="default" className="lg:col-span-3">
-          <CardContent className="p-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-12 h-12 rounded-xl bg-accent/20 flex items-center justify-center">
-                  <QrCode className="h-6 w-6 text-accent" />
-                </div>
-                <div>
-                  <h3 className="font-semibold text-foreground">Vehicle QR Code</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Generate QR code for field verification
-                  </p>
-                </div>
-              </div>
-              <Button variant="outline">
-                <QrCode className="h-4 w-4 mr-2" />
-                Generate QR
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* QR Code */}
+        <VehicleQRCode
+          vehicleId={vehicle.id.toString()}
+          plateNumber={vehicle.plate_number}
+          vehicleMake={vehicle.make}
+          vehicleModel={vehicle.model}
+          vehicleYear={vehicle.year}
+          existingQrValue={vehicle.qr_value}
+        />
       </div>
     </AdminLayout>
   );
