@@ -193,7 +193,7 @@ export default function VehicleDetailPage() {
                   )}
                 </div>
                 <Button variant="outline" size="sm" className="w-full" asChild>
-                  <Link to={`/admin/owners/${vehicle.owners.id}/edit`}>
+                  <Link to={`/admin/owners/${vehicle.owners.id}`}>
                     View Owner Details
                   </Link>
                 </Button>
