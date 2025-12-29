@@ -17,6 +17,33 @@ export async function getVehiclesByOwner(ownerId: string): Promise<any[]> {
     const all = await getVehicles();
     return all.filter(v => v.owner && String(v.owner.id) === String(ownerId));
 }
+
+// User Management
+export async function getUsers(role?: string, status?: string): Promise<BackendUserOut[]> {
+    const params = new URLSearchParams();
+    if (role) params.append('role', role);
+    if (status) params.append('status', status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchJson(`/admin/users${query}`);
+}
+
+export async function assignUserRole(userId: number, role: string): Promise<any> {
+    return fetchJson(`/admin/users/${userId}/assign-role?role=${role}`, {
+        method: 'POST',
+    });
+}
+
+export async function updateUserStatus(userId: number, status: string): Promise<any> {
+    return fetchJson(`/admin/users/${userId}/update-status?status=${status}`, {
+        method: 'POST',
+    });
+}
+
+export async function activateUser(userId: number): Promise<any> {
+    return fetchJson(`/admin/users/${userId}/activate`, {
+        method: 'POST',
+    });
+}
 export type ApiError = {
     message: string;
     status?: number;

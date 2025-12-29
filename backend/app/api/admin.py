@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
-from typing import Optional
+from typing import Optional, List
 import datetime
 
 from ..db import get_db
@@ -89,3 +89,65 @@ def activate_user(
     db.add(u)
     db.commit()
     return {'ok': True}
+
+
+@router.get('/users', response_model=List[schemas.UserOut])
+def list_users(
+    role: Optional[str] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_admin),
+):
+    """List all users with optional filtering by role and status"""
+    qs = db.query(models.User)
+    if role:
+        qs = qs.filter(models.User.role == role)
+    if status:
+        qs = qs.filter(models.User.status == status)
+    return qs.order_by(models.User.created_at.desc()).all()
+
+
+@router.post('/users/{user_id}/assign-role')
+def assign_user_role(
+    user_id: int,
+    role: str,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_admin),
+):
+    """Assign a role to a user (public, inspector, admin)"""
+    valid_roles = ['public', 'inspector', 'admin', 'super_admin']
+    if role not in valid_roles:
+        raise HTTPException(status_code=400, detail=f'Invalid role. Must be one of: {valid_roles}')
+    
+    u = db.query(models.User).filter(models.User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    u.role = role
+    u.updated_at = datetime.datetime.utcnow()
+    db.add(u)
+    db.commit()
+    return {'ok': True, 'user_id': user_id, 'role': role}
+
+
+@router.post('/users/{user_id}/update-status')
+def update_user_status(
+    user_id: int,
+    status: str,
+    db: Session = Depends(get_db),
+    admin: models.User = Depends(require_admin),
+):
+    """Update user status (pending_verification, active, rejected, disabled)"""
+    valid_statuses = ['pending', 'pending_verification', 'active', 'rejected', 'disabled']
+    if status not in valid_statuses:
+        raise HTTPException(status_code=400, detail=f'Invalid status. Must be one of: {valid_statuses}')
+    
+    u = db.query(models.User).filter(models.User.id == user_id).first()
+    if not u:
+        raise HTTPException(status_code=404, detail='User not found')
+    
+    u.status = status
+    u.updated_at = datetime.datetime.utcnow()
+    db.add(u)
+    db.commit()
+    return {'ok': True, 'user_id': user_id, 'status': status}

@@ -199,6 +199,22 @@ class VerifyOtpBody(BaseModel):
     method: str  # email or phone
 
 
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: str
+    status: str
+    email_verified: int
+    phone_verified: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
+
+
 class UserDocumentOut(BaseModel):
     id: int
     user_id: int
