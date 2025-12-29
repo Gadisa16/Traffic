@@ -76,14 +76,14 @@ export function VehicleQRCode({
         try {
             const response = await fetch(qrData.qr_png_url);
             const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
+            const url = globalThis.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
             a.download = `vehicle-qr-${plateNumber}.png`;
             document.body.appendChild(a);
             a.click();
-            window.URL.revokeObjectURL(url);
-            document.body.removeChild(a);
+            globalThis.URL.revokeObjectURL(url);
+            a.remove();
             toast.success('QR code downloaded');
         } catch (error) {
             console.error('Download error:', error);
@@ -137,7 +137,7 @@ export function VehicleQRCode({
                         </div>
                     </div>
 
-                    {qrData && qrData.qr_png_url && (
+                    {qrData?.qr_png_url && (
                         <div className="mt-6 flex items-center justify-center">
                             <div className="text-center">
                                 <img
