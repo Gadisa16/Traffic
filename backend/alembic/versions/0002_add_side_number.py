@@ -1,7 +1,7 @@
 """add side_number to vehicles
 
 Revision ID: 0002_add_side_number
-Revises: 0001_add_soft_delete_to_vehicles
+Revises: 0001_soft_delete_vehicles
 Create Date: 2025-12-24 00:00:00.000000
 """
 from alembic import op
@@ -9,7 +9,7 @@ import sqlalchemy as sa
 
 # revision identifiers, used by Alembic.
 revision = '0002_add_side_number'
-down_revision = '0001_add_soft_delete_to_vehicles'
+down_revision = '0001_soft_delete_vehicles'
 branch_labels = None
 depends_on = None
 

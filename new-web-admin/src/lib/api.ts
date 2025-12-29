@@ -1,3 +1,22 @@
+// Owner Document API methods
+export async function getOwnerDocuments(ownerId: string): Promise<any[]> {
+    return fetchJson(`/owners/${ownerId}/documents`);
+}
+
+export async function uploadOwnerDocument(ownerId: string, doc: { doc_type: string; file_url: string; file_bucket?: string; file_path?: string }): Promise<any> {
+    return fetchJson(`/owners/${ownerId}/documents`, {
+        method: 'POST',
+        body: JSON.stringify(doc),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+// Vehicles by owner
+export async function getVehiclesByOwner(ownerId: string): Promise<any[]> {
+    // fallback: filter client-side if no backend endpoint
+    const all = await getVehicles();
+    return all.filter(v => v.owner && String(v.owner.id) === String(ownerId));
+}
 export type ApiError = {
     message: string;
     status?: number;

@@ -108,7 +108,7 @@ export default function OwnersPage() {
                   </div>
                   <div className="flex items-center gap-1">
                     <Button variant="ghost" size="icon-sm" asChild>
-                      <Link to={`/admin/owners/${owner.id}/edit`}>
+                      <Link to={`/admin/owners/${owner.id}`}>
                         <Eye className="h-4 w-4" />
                       </Link>
                     </Button>

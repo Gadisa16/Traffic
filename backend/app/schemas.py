@@ -8,12 +8,14 @@ SideNumber = constr(regex=r"^\d{4}$")
 
 class OwnerBase(BaseModel):
     full_name: str
-    phone: Optional[str]
-    address: Optional[str]
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    tin_number: Optional[str] = None
+    fan_number: Optional[str] = None
 
 
 class OwnerCreate(OwnerBase):
-    national_id: Optional[str]
+    national_id: Optional[str] = None
 
 
 class OwnerOut(OwnerBase):
@@ -21,6 +23,28 @@ class OwnerOut(OwnerBase):
 
     class Config:
         orm_mode = True
+
+
+class OwnerDocumentOut(BaseModel):
+    id: int
+    owner_id: int
+    doc_type: str
+    file_url: str
+    status: str
+    rejection_reason: Optional[str] = None
+    uploaded_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
+    reviewed_by_user_id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class OwnerDocumentCreate(BaseModel):
+    doc_type: str
+    file_url: str
+    file_bucket: Optional[str] = None
+    file_path: Optional[str] = None
 
 
 class OwnerInspectorOut(BaseModel):

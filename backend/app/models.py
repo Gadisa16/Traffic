@@ -17,8 +17,11 @@ class Owner(Base):
     full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     address = Column(String, nullable=True)
+    tin_number = Column(String, nullable=True)
+    fan_number = Column(String, nullable=True)
     national_id_hash = Column(String, nullable=True)
     vehicles = relationship("Vehicle", back_populates="owner")
+    documents = relationship("OwnerDocument", back_populates="owner")
 
 
 class Vehicle(Base):
@@ -77,7 +80,8 @@ class User(Base):
 class Inspection(Base):
     __tablename__ = "inspections"
     id = Column(Integer, primary_key=True, index=True)
-    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), index=True, nullable=False)
+    vehicle_id = Column(Integer, ForeignKey(
+        "vehicles.id"), index=True, nullable=False)
     code = Column(String, nullable=False)
     inspector_username = Column(String, nullable=False)
     action = Column(String, nullable=True)
@@ -92,12 +96,14 @@ class Inspection(Base):
 class UserDocument(Base):
     __tablename__ = "user_documents"
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), index=True, nullable=False)
+    user_id = Column(Integer, ForeignKey("users.id"),
+                     index=True, nullable=False)
     doc_type = Column(String, nullable=False)
     file_bucket = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
     file_url = Column(String, nullable=False)
-    status = Column(String, nullable=False, default='pending')  # pending/approved/rejected
+    # pending/approved/rejected
+    status = Column(String, nullable=False, default='pending')
     rejection_reason = Column(String, nullable=True)
     uploaded_at = Column(DateTime, nullable=True)
     reviewed_at = Column(DateTime, nullable=True)
@@ -106,10 +112,29 @@ class UserDocument(Base):
     user = relationship("User", back_populates="documents")
 
 
+class OwnerDocument(Base):
+    __tablename__ = "owner_documents"
+    id = Column(Integer, primary_key=True, index=True)
+    owner_id = Column(Integer, ForeignKey("owners.id"),
+                      index=True, nullable=False)
+    doc_type = Column(String, nullable=False)
+    file_bucket = Column(String, nullable=False)
+    file_path = Column(String, nullable=False)
+    file_url = Column(String, nullable=False)
+    status = Column(String, nullable=False, default='pending')
+    rejection_reason = Column(String, nullable=True)
+    uploaded_at = Column(DateTime, nullable=True)
+    reviewed_at = Column(DateTime, nullable=True)
+    reviewed_by_user_id = Column(Integer, nullable=True)
+
+    owner = relationship("Owner", back_populates="documents")
+
+
 class VehiclePhoto(Base):
     __tablename__ = "vehicle_photos"
     id = Column(Integer, primary_key=True, index=True)
-    vehicle_id = Column(Integer, ForeignKey("vehicles.id"), index=True, nullable=False)
+    vehicle_id = Column(Integer, ForeignKey(
+        "vehicles.id"), index=True, nullable=False)
     file_bucket = Column(String, nullable=False)
     file_path = Column(String, nullable=False)
     file_url = Column(String, nullable=False)
