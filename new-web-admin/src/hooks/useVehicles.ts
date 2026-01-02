@@ -2,6 +2,19 @@ import * as Api from '@/lib/api';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
+export interface License {
+  start_date: string;
+  expiry_date: string;
+  renewal_status?: string;
+}
+
+export interface VehiclePhoto {
+  id: number;
+  file_url: string;
+  kind?: string;
+  created_at?: string;
+}
+
 export interface Vehicle {
   id: string;
   plate_number: string;
@@ -10,12 +23,15 @@ export interface Vehicle {
   model: string;
   year: number;
   color: string;
-  license_start_date: string;
-  license_expiry_date: string;
   status: 'active' | 'suspended' | 'deleted';
-  deleted_at: string | null;
+  license_expiry_date: string;
+  license_start_date: string;
+  license?: License;
+  photos?: VehiclePhoto[];
+  qr_value?: string;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
 }
 
 export interface VehicleWithOwner extends Vehicle {
@@ -26,6 +42,7 @@ export interface VehicleWithOwner extends Vehicle {
     tin_number: string;
     address: string | null;
   } | null;
+  license?: License;
 }
 
 export type LicenseStatus = 'valid' | 'expiring' | 'expired';

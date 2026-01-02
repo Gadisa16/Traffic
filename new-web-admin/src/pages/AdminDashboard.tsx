@@ -1,21 +1,21 @@
 import { AdminLayout } from '@/components/AdminLayout';
+import { LicenseStatusBadge } from '@/components/LicenseStatusBadge';
 import { PageHeader } from '@/components/PageHeader';
 import { StatCard } from '@/components/StatCard';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useStats } from '@/hooks/useStats';
-import { useVehicles, getLicenseStatus, getDaysUntilExpiry } from '@/hooks/useVehicles';
-import { LicenseStatusBadge } from '@/components/LicenseStatusBadge';
-import { 
-  Car, 
-  Users, 
-  AlertTriangle, 
-  XCircle, 
-  Trash2, 
+import { getDaysUntilExpiry, getLicenseStatus, useVehicles } from '@/hooks/useVehicles';
+import {
+  AlertTriangle,
   ArrowRight,
-  TrendingUp
+  Car,
+  Trash2,
+  TrendingUp,
+  Users,
+  XCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -49,6 +49,7 @@ export default function AdminDashboard() {
               icon={Car}
               description="Registered in system"
               variant="primary"
+              to="/admin/vehicles"
             />
             <StatCard
               title="Active Vehicles"
@@ -56,6 +57,7 @@ export default function AdminDashboard() {
               icon={TrendingUp}
               description="Currently operating"
               variant="success"
+              to="/admin/vehicles?filter=valid"
             />
             <StatCard
               title="Expiring Soon"
@@ -63,6 +65,7 @@ export default function AdminDashboard() {
               icon={AlertTriangle}
               description="Within 30 days"
               variant="warning"
+              to="/admin/vehicles?filter=expiring"
             />
             <StatCard
               title="Expired Licenses"
@@ -70,6 +73,7 @@ export default function AdminDashboard() {
               icon={XCircle}
               description="Requires attention"
               variant="destructive"
+              to="/admin/vehicles?filter=expired"
             />
             <StatCard
               title="In Trash"
@@ -77,6 +81,7 @@ export default function AdminDashboard() {
               icon={Trash2}
               description="Pending deletion"
               variant="default"
+              to="/admin/trash"
             />
           </>
         )}
@@ -105,7 +110,7 @@ export default function AdminDashboard() {
               urgentVehicles.map((vehicle) => {
                 const status = getLicenseStatus(vehicle.license_expiry_date);
                 const days = getDaysUntilExpiry(vehicle.license_expiry_date);
-                
+
                 return (
                   <Link
                     key={vehicle.id}

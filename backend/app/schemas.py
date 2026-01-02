@@ -8,12 +8,14 @@ SideNumber = constr(regex=r"^\d{4}$")
 
 class OwnerBase(BaseModel):
     full_name: str
-    phone: Optional[str]
-    address: Optional[str]
+    phone: Optional[str] = None
+    address: Optional[str] = None
+    tin_number: Optional[str] = None
+    fan_number: Optional[str] = None
 
 
 class OwnerCreate(OwnerBase):
-    national_id: Optional[str]
+    national_id: Optional[str] = None
 
 
 class OwnerOut(OwnerBase):
@@ -21,6 +23,28 @@ class OwnerOut(OwnerBase):
 
     class Config:
         orm_mode = True
+
+
+class OwnerDocumentOut(BaseModel):
+    id: int
+    owner_id: int
+    doc_type: str
+    file_url: str
+    status: str
+    rejection_reason: Optional[str] = None
+    uploaded_at: Optional[datetime] = None
+    reviewed_at: Optional[datetime] = None
+    reviewed_by_user_id: Optional[int] = None
+
+    class Config:
+        orm_mode = True
+
+
+class OwnerDocumentCreate(BaseModel):
+    doc_type: str
+    file_url: str
+    file_bucket: Optional[str] = None
+    file_path: Optional[str] = None
 
 
 class OwnerInspectorOut(BaseModel):
@@ -106,6 +130,7 @@ class VehicleCreate(VehicleBase):
     qr_value: Optional[str]
     status: Optional[str]
     owner: Optional[OwnerCreate]
+    owner_id: Optional[int]
     license: Optional[LicenseCreate]
 
 
@@ -114,6 +139,7 @@ class VehicleUpdate(BaseModel):
     qr_value: Optional[str]
     status: Optional[str]
     owner: Optional[OwnerCreate]
+    owner_id: Optional[int]
     license: Optional[LicenseCreate]
     side_number: Optional[SideNumber]
     vehicle_type: Optional[str] = None
@@ -128,6 +154,11 @@ class VehicleOut(VehicleBase):
     qr_value: Optional[str]
     status: Optional[str]
     owner: Optional[OwnerOut]
+    # backward-compat: some frontends expect `owners` key
+    owners: Optional[OwnerOut] = None
+    # convenience fields for license dates (string ISO)
+    license_start_date: Optional[str] = None
+    license_expiry_date: Optional[str] = None
     license: Optional[LicenseOut] = None
     side_number: Optional[str]
     photos: Optional[list[VehiclePhotoOut]] = None
@@ -166,6 +197,22 @@ class RegisterBody(BaseModel):
 class VerifyOtpBody(BaseModel):
     otp: str
     method: str  # email or phone
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: str
+    status: str
+    email_verified: int
+    phone_verified: int
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    class Config:
+        orm_mode = True
 
 
 class UserDocumentOut(BaseModel):

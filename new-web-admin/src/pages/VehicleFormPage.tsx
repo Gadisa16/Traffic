@@ -6,9 +6,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { VehicleImageUpload } from '@/components/VehicleImageUpload';
 import { useOwners } from '@/hooks/useOwners';
 import { useCreateVehicle, useUpdateVehicle, useVehicle } from '@/hooks/useVehicles';
-import { ArrowLeft, Car, Plus, Save, User } from 'lucide-react';
+import * as Api from '@/lib/api';
+import { ArrowLeft, Car, Image as ImageIcon, Plus, Save, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -50,7 +52,7 @@ export default function VehicleFormPage() {
   });
 
 
-  const { data: vehicleData } = useVehicle(id || '');
+  const { data: vehicleData, refetch: refetchVehicle } = useVehicle(id || '');
   const createVehicle = useCreateVehicle();
   const updateVehicle = useUpdateVehicle();
 
@@ -62,9 +64,9 @@ export default function VehicleFormPage() {
         model: vehicleData.model || '',
         year: vehicleData.year || new Date().getFullYear(),
         color: vehicleData.color || '',
-        license_start_date: vehicleData.license?.start_date || new Date().toISOString().split('T')[0],
-        license_expiry_date: vehicleData.license?.expiry_date || '',
-        owner_id: vehicleData.owner?.id?.toString() || 'none',
+        license_start_date: vehicleData.license_start_date || new Date().toISOString().split('T')[0],
+        license_expiry_date: vehicleData.license_expiry_date || '',
+        owner_id: vehicleData.owners?.id?.toString() || 'none',
         status: vehicleData.status === 'deleted' ? 'suspended' : (vehicleData.status as 'active' | 'suspended'),
       });
       setIsFetching(false);
@@ -107,9 +109,7 @@ export default function VehicleFormPage() {
         model: formData.model,
         year: Number(formData.year),
         color: formData.color,
-        owner: formData.owner_id && formData.owner_id !== 'none' ? {
-          id: parseInt(formData.owner_id)
-        } : null,
+        owner_id: formData.owner_id && formData.owner_id !== 'none' ? parseInt(formData.owner_id) : undefined,
         license: {
           start_date: formData.license_start_date,
           expiry_date: formData.license_expiry_date,
@@ -302,6 +302,33 @@ export default function VehicleFormPage() {
             </CardContent>
           </Card>
         </div>
+
+        {/* Vehicle Images */}
+        {isEditing && id && (
+          <Card variant="elevated">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-lg">
+                <ImageIcon className="h-5 w-5 text-primary" />
+                Vehicle Images
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <VehicleImageUpload
+                vehicleId={id}
+                existingImages={vehicleData?.photos || []}
+                onUpload={async (files) => {
+                  await Api.uploadVehiclePhotos(id, files);
+                  await refetchVehicle();
+                }}
+                onDelete={async (photoId) => {
+                  await Api.deleteVehiclePhoto(id, photoId.toString());
+                  await refetchVehicle();
+                }}
+                maxImages={10}
+              />
+            </CardContent>
+          </Card>
+        )}
 
         {/* Actions */}
         <div className="flex justify-end gap-3 mt-6">

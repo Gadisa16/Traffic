@@ -2,6 +2,7 @@ from __future__ import with_statement
 import os
 import sys
 from logging.config import fileConfig
+from dotenv import load_dotenv
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -10,6 +11,9 @@ from sqlalchemy import engine_from_config, pool
 base_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 if base_dir not in sys.path:
     sys.path.insert(0, base_dir)
+
+# Load .env from backend so DATABASE_URL is available to Alembic when run via Poetry
+load_dotenv(os.path.join(base_dir, '.env'))
 
 from app.models import Base  # noqa: E402
 

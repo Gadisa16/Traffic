@@ -1,3 +1,49 @@
+// Owner Document API methods
+export async function getOwnerDocuments(ownerId: string): Promise<any[]> {
+    return fetchJson(`/owners/${ownerId}/documents`);
+}
+
+export async function uploadOwnerDocument(ownerId: string, doc: { doc_type: string; file_url: string; file_bucket?: string; file_path?: string }): Promise<any> {
+    return fetchJson(`/owners/${ownerId}/documents`, {
+        method: 'POST',
+        body: JSON.stringify(doc),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+// Vehicles by owner
+export async function getVehiclesByOwner(ownerId: string): Promise<any[]> {
+    // fallback: filter client-side if no backend endpoint
+    const all = await getVehicles();
+    return all.filter(v => v.owner && String(v.owner.id) === String(ownerId));
+}
+
+// User Management
+export async function getUsers(role?: string, status?: string): Promise<BackendUserOut[]> {
+    const params = new URLSearchParams();
+    if (role) params.append('role', role);
+    if (status) params.append('status', status);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchJson(`/admin/users${query}`);
+}
+
+export async function assignUserRole(userId: number, role: string): Promise<any> {
+    return fetchJson(`/admin/users/${userId}/assign-role?role=${role}`, {
+        method: 'POST',
+    });
+}
+
+export async function updateUserStatus(userId: number, status: string): Promise<any> {
+    return fetchJson(`/admin/users/${userId}/update-status?status=${status}`, {
+        method: 'POST',
+    });
+}
+
+export async function activateUser(userId: number): Promise<any> {
+    return fetchJson(`/admin/users/${userId}/activate`, {
+        method: 'POST',
+    });
+}
 export type ApiError = {
     message: string;
     status?: number;
@@ -181,4 +227,40 @@ export async function updateOwner(id: string, owner: any): Promise<any> {
 
 export async function deleteOwner(id: string): Promise<any> {
     return fetchJson(`/owners/${id}`, { method: 'DELETE' });
+}
+
+// Vehicle Photo API methods
+export async function uploadVehiclePhotos(vehicleId: string, files: File[], kind?: string): Promise<any[]> {
+    const formData = new FormData();
+    files.forEach(file => {
+        formData.append('files', file);
+    });
+    if (kind) {
+        formData.append('kind', kind);
+    }
+
+    const token = getAccessToken();
+    const response = await fetch(`${getBaseUrl()}/vehicles/${vehicleId}/photos`, {
+        method: 'POST',
+        headers: {
+            ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
+        },
+        body: formData,
+    });
+
+    if (!response.ok) {
+        const error = await response.text();
+        throw new Error(error || 'Failed to upload photos');
+    }
+
+    return response.json();
+}
+
+export async function deleteVehiclePhoto(vehicleId: string, photoId: string): Promise<any> {
+    return fetchJson(`/vehicles/${vehicleId}/photos/${photoId}`, { method: 'DELETE' });
+}
+
+// Vehicle QR Code API methods
+export async function generateVehicleQR(vehicleId: string): Promise<{ vehicle_id: number; qr_value: string; qr_png_url: string }> {
+    return fetchJson(`/vehicles/${vehicleId}/qr`, { method: 'POST' });
 }

@@ -11,6 +11,7 @@ import Index from "./pages/Index";
 import InspectorApp from "./pages/InspectorApp";
 import LoginPage from "./pages/LoginPage";
 import NotFound from "./pages/NotFound";
+import OwnerDetailPage from "./pages/OwnerDetailPage";
 import OwnerFormPage from "./pages/OwnerFormPage";
 import OwnersPage from "./pages/OwnersPage";
 import TrashPage from "./pages/TrashPage";
@@ -91,6 +92,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute allowedRoles={['admin', 'super_admin']}>
             <OwnerFormPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin/owners/:id"
+        element={
+          <ProtectedRoute allowedRoles={["admin", "super_admin"]}>
+            <OwnerDetailPage />
           </ProtectedRoute>
         }
       />
