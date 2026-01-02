@@ -608,3 +608,146 @@ Think of the system as **three concentric circles**:
 
 No one jumps directly to the inner circle.
 Everyone starts public, then optionally registers, then must be verified/approved for more access.
+
+
+
+
+
+
+
+
+
+
+
+
+## 1. What **“ቦሎ ኢድሳት”** means and what it is
+
+**English meaning:**
+**“Periodic Vehicle Inspection”** or **“Roadworthiness Inspection”**
+
+**What it is:**
+It’s the **official technical inspection** a vehicle must pass to prove it’s safe and fit to be on the road. In Ethiopia, this inspection is done periodically (often yearly) and covers things like:
+
+* Brakes
+* Lights
+* Tires
+* Steering
+* Emissions / smoke
+* Overall mechanical safety
+
+It always has:
+
+* An **issue date**
+* An **expiry date**
+* A clear **valid / expired** status
+
+So in a system, it behaves exactly like a **time-based compliance document**, similar to insurance or license validity.
+
+### Status logic (your idea makes sense)
+
+* **Green** → Valid (more than 3 months remaining)
+* **Yellow** → Expiring soon (≤ 3 months remaining)
+* **Red** → Expired (0 days remaining)
+
+That’s a very intuitive, professional UX choice.
+
+---
+
+## 2. Short implementation notes / prompt for the 3 ideas
+
+You can copy-paste this as a design or dev note.
+
+---
+
+### Feature Notes / Prompt
+
+1. **Vehicle Inspection (ቦሎ ኢድሳት)**
+
+   * Add a “Periodic Vehicle Inspection” field when registering a vehicle
+   * Store:
+
+     * Inspection issue date
+     * Inspection expiry date
+   * Automatically compute status:
+
+     * Green: more than 3 months remaining
+     * Yellow: 3 months or less remaining
+     * Red: expired
+   * Status should be clearly visible on vehicle detail, list pages and also mobile inspector app when scanning a vehicle QR code.
+
+2. **Multiple owners per vehicle**
+
+   * Allow a vehicle to be linked to **multiple owners**
+   * Enable this both ways:
+
+     * Assign multiple users to one vehicle
+     * Assign one vehicle to multiple users
+   * Define one owner as **primary** (optional but recommended)
+
+3. **Chassis number requirement**
+
+   * Make **chassis number mandatory** during vehicle registration
+   * Treat it as a unique identifier
+   * Display it prominently on vehicle details since it represents the vehicle’s true identity
+
+I also want vehicle list page on mobile inspector app to have a filter by inspection status (ቦሎ ኢድሳት ሁኔታ በመሰረት መገምገሚያ), vehicle plate number, side number so that inspector can easily find vehicles with expired inspection or expiring soon inspection for follow-up actions or maybe just to go through existing vehicles.
+---
+
+
+
+
+
+That makes sense, and it’s a good UX choice.
+
+Here’s a short, clear note you can add to your feature prompt:
+
+---
+
+### Plate number letter selection
+
+* When registering a vehicle, split the plate number input into two parts:
+
+  * **Plate letter**: selectable from a dropdown (e.g. A, B, C, … based on Ethiopian plate standards)
+  * **Plate number**: numeric input
+* Combine both values when saving (e.g. `A-123456`).
+* Store the combined value as the official plate number, but keep the letter and number logically separated in the UI for clarity and validation.
+* Ensure the dropdown is required if the plate letter is part of the selected plate type.
+
+---
+
+
+### Plate type support (Private, Commercial, Government, etc.)
+
+* **Vehicle registration**
+
+  * Add a required **Plate Type** dropdown when registering a vehicle.
+  * Options:
+
+    * Private
+    * Commercial
+    * Government
+    * Other (with optional description field)
+  * Store this value as a structured field (enum/string), not part of the plate number itself.
+
+* **Vehicle detail page**
+
+  * Display plate type clearly alongside:
+
+    * Plate number
+    * Chassis number
+    * Owner(s)
+  * Use a badge or label so it’s visually distinct and easy to scan.
+
+* **Vehicle list / management page**
+
+  * Add **filter by Plate Type**.
+  * Allow combining with existing filters (owner, status, inspection, etc.).
+  * On mobile: dropdown filter with single selection.
+
+
+- user flow is still not fully implemented, I want user flow and rbac to be fully implemented the things like inspector registration flow including uploading uploading of verification documents on mobile, and then i want the notification to be received on web-admin admin so that admin can check the request including inspectors documents and then approve or reject the inspector registration request. I also want the rbac to be fully implemented so that only verified inspectors can access inspector features on mobile app including scanning vehicle qr code and then viewing inspection history and submitting inspection reports including uploading photos as evidence. I also want ordinary users to have limited access to public vehicle info only when they scan vehicle qr code or enter plate number/side number on mobile app. I also want admin registration flow to be fully implemented on web-admin page including the environment variable and also when user registered as admin first I want them to stay without any permission until previously verified admins come and approve that and also I want the invitation functionality to work so that verified admins can invite new admins to register themselves. And also for things like plate number and others that must to be unique I want the validation to be fully implemented so that no duplicate entries can be made in the system.
+
+## please use file /zDocs/user_and_rbac.md as reference for user flow, rbac implementation and others
+
+
+// since many things are already done focus on left things and first finish with inspector registration flow, notifications on web admin, approval process  and such funcitonalities
