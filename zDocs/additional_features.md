@@ -20,3 +20,8 @@ I want the system to send auto reminders to vehicle owners and admins when the b
 
 
 - I want the admin be able to flag vehicles for review so that if an admin finds any suspicious or non-compliant vehicle during inspection or review, they can flag the vehicle for further investigation. flagged vehicles should be listed in a separate "Flagged Vehicles" page for admins to review and take action (like re-inspection, suspension, etc.)
+
+- I want the qr code printing works or print the intended content perfectly on one page and i want the QR code to have city administration logo (new-web-admin\public\administration_logo.PNG) on the center of the QR code.
+
+
+- overall make the system to look and operate like production ready and fill any gap you see in the system.
