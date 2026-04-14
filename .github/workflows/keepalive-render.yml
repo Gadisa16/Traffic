@@ -1,0 +1,32 @@
+name: Keep Backend Active
+
+on:
+  schedule:
+    # Every 6 hours; enough to avoid long inactivity pauses.
+    - cron: "0 */6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    env:
+      KEEP_ALIVE_URL: https://traffic-cl4o.onrender.com/vehicles/stats/summary
+    steps:
+      - name: Ping DB-backed endpoint
+        run: |
+          set -euo pipefail
+
+          echo "Pinging: $KEEP_ALIVE_URL"
+
+          HTTP_CODE=$(curl -sS -o /tmp/keepalive-response.json -w "%{http_code}" "$KEEP_ALIVE_URL")
+          cat /tmp/keepalive-response.json || true
+
+          if [ "$HTTP_CODE" -lt 200 ] || [ "$HTTP_CODE" -ge 300 ]; then
+            echo "Keep-alive failed with HTTP status: $HTTP_CODE"
+            exit 1
+          fi
+
+          echo "Keep-alive success (HTTP $HTTP_CODE)"
