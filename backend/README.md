@@ -63,3 +63,10 @@ Next steps
 - Create a virtualenv and install the dependencies
 - Implement DB connection and migrations (Alembic)
 - Expand API routers with auth and CRUD
+
+Keep-alive automation (optional)
+
+- A scheduled GitHub Actions workflow is included at `.github/workflows/keepalive-render.yml`.
+- It pings a DB-backed endpoint every 6 hours to reduce inactivity pauses.
+- Default endpoint: `https://traffic-cl4o.onrender.com/vehicles/stats/summary`
+- If your Render URL changes, update `KEEP_ALIVE_URL` in that workflow file.
